@@ -26,9 +26,7 @@ pub extern "C" fn init_world() {
     let mut world = World::new();
 
     world.register::<RenderCommand>();
-    world.insert(RenderState {
-        render_commands: vec![RenderCommand::DrawLine],
-    });
+    world.insert(RenderState::default());
 
     let dispatcher = DispatcherBuilder::new()
         .with(DemoRenderSystem, "demo_render", &[])
@@ -72,36 +70,35 @@ unsafe fn flush() {
     state.render_commands.clear();
 }
 
+#[repr(C)]
+#[derive(Debug)]
+pub struct RawBuffer {
+    data: *const u8,
+    length: usize,
+}
+
 #[no_mangle]
-pub extern "C" fn get_render_commands() -> &'static [u8] {
+pub extern "C" fn get_render_commands() -> RawBuffer {
     unsafe {
         let application_state = get_application_state();
         let state = application_state.world.read_resource::<RenderState>();
 
         let json = serde_json::to_vec(&state.render_commands).unwrap();
 
-        dbg!(serde_json::to_string(&state.render_commands).unwrap());
-
         let start = application_state.memory.serialize_buffer.len();
         let end = start + json.len();
-
-        println!(
-            "ref: {:?}",
-            application_state.memory.serialize_buffer.as_ptr()
-        );
-        println!("{:?} - {:?}", start, end);
 
         application_state
             .memory
             .serialize_buffer
             .extend(json.into_iter());
 
-        println!(
-            "length: {:?}",
-            application_state.memory.serialize_buffer.len()
-        );
+        let data = application_state.memory.serialize_buffer[start..end].as_ptr();
 
-        &application_state.memory.serialize_buffer[start..end]
+        RawBuffer {
+            data,
+            length: end - start,
+        }
     }
 }
 

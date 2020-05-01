@@ -9,13 +9,11 @@ pub enum RenderCommand {
     PushPos2f { x: f32, y: f32 },
     PushSize2f { x: f32, y: f32 },
     PushTexture { name: String },
+    SetColorUniform,
     PushColorShader,
     PushTextureShader,
-    DrawLine,
     DrawLines,
-    DrawPoint,
     DrawPoints,
-    DrawQuad,
     DrawQuads,
 }
 
