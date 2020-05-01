@@ -1,7 +1,9 @@
-use serde::{Serialize, Deserialize};
+use std::default::Default;
+
+use serde::{Deserialize, Serialize};
 use specs::{Component, DenseVecStorage};
 
-#[derive(Component, Debug,Serialize, Deserialize)]
+#[derive(Component, Debug, Serialize, Deserialize)]
 pub enum RenderCommand {
     PushColor { r: f32, g: f32, b: f32, a: f32 },
     PushPos2f { x: f32, y: f32 },
@@ -17,14 +19,14 @@ pub enum RenderCommand {
     DrawQuads,
 }
 
-/*
-// Clear screen
-PushColor { r: 0, g: 0, b: 0, a: 1 }
-Clear
+pub struct RenderState {
+    pub render_commands: Vec<RenderCommand>,
+}
 
-// Draw Linew
-PushColor { r: 1, g: 1, b: 1, a: 1 }
-PushColorShader,
-PushPos2f { x: 100, y: 100 }
-PushPos2f { x: 100, y: 200 }
-*/
+impl Default for RenderState {
+    fn default() -> Self {
+        RenderState {
+            render_commands: Vec::new(),
+        }
+    }
+}

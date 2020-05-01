@@ -1,6 +1,6 @@
 mod render;
 
-use render::components::RenderCommand;
+use render::components::{RenderCommand, RenderState};
 use render::system::DemoRenderSystem;
 use specs::{Dispatcher, DispatcherBuilder, World, WorldExt};
 
@@ -12,10 +12,6 @@ struct ApplicationState {
     dispatcher: Dispatcher<'static, 'static>,
     world: World,
     memory: Memory,
-}
-
-struct RenderState {
-    render_commands: Vec<RenderCommand>,
 }
 
 #[repr(C)]
@@ -61,11 +57,19 @@ unsafe fn get_application_state() -> &'static mut ApplicationState {
 pub extern "C" fn step() {
     unsafe {
         let state = get_application_state();
-        state.memory.serialize_buffer.clear();
+        flush();
 
         state.dispatcher.dispatch(&mut state.world);
         state.world.maintain();
     }
+}
+
+unsafe fn flush() {
+    let application_state = get_application_state();
+    let mut state = application_state.world.write_resource::<RenderState>();
+
+    application_state.memory.serialize_buffer.clear();
+    state.render_commands.clear();
 }
 
 #[no_mangle]
@@ -81,7 +85,10 @@ pub extern "C" fn get_render_commands() -> &'static [u8] {
         let start = application_state.memory.serialize_buffer.len();
         let end = start + json.len();
 
-        println!("ref: {:?}", application_state.memory.serialize_buffer.as_ptr());
+        println!(
+            "ref: {:?}",
+            application_state.memory.serialize_buffer.as_ptr()
+        );
         println!("{:?} - {:?}", start, end);
 
         application_state
