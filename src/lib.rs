@@ -1,8 +1,8 @@
 mod render;
 
-use render::components::{RenderCommand, RenderState};
-use render::system::DemoRenderSystem;
-use specs::{Dispatcher, DispatcherBuilder, World, WorldExt};
+use render::components::{Color, GridComponent, Pos2f, RenderCommand, RenderState, Size2f};
+use render::grid_system::GridSystem;
+use specs::{Builder, Dispatcher, DispatcherBuilder, World, WorldExt};
 
 struct Memory {
     serialize_buffer: Vec<u8>,
@@ -26,10 +26,29 @@ pub extern "C" fn init_world() {
     let mut world = World::new();
 
     world.register::<RenderCommand>();
+    world.register::<GridComponent>();
     world.insert(RenderState::default());
 
+    world
+        .create_entity()
+        .with(GridComponent {
+            position: Pos2f { x: 0.0, y: 0.0 },
+            size: Size2f {
+                width: 800.0,
+                height: 600.0,
+            },
+            color: Color {
+                r: 1.0,
+                g: 0.0,
+                b: 0.0,
+                a: 1.0,
+            },
+            step: 32,
+        })
+        .build();
+
     let dispatcher = DispatcherBuilder::new()
-        .with(DemoRenderSystem, "demo_render", &[])
+        .with(GridSystem, "grid", &[])
         .build();
 
     let memory = Memory {

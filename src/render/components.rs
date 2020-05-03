@@ -28,3 +28,31 @@ impl Default for RenderState {
         }
     }
 }
+
+#[derive(Component, Default, Debug)]
+pub struct Pos2f {
+    pub x: f32,
+    pub y: f32,
+}
+
+#[derive(Component, Default, Debug)]
+pub struct Size2f {
+    pub width: f32,
+    pub height: f32,
+}
+
+#[derive(Component, Default, Debug)]
+pub struct Color {
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
+    pub a: f32,
+}
+
+#[derive(Component, Default, Debug)]
+pub struct GridComponent {
+    pub position: Pos2f,
+    pub size: Size2f,
+    pub step: i32,
+    pub color: Color,
+}
