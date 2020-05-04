@@ -1,6 +1,8 @@
 mod render;
 
-use render::components::{Color, GridComponent, Pos2f, RenderCommand, RenderState, Size2f};
+use render::components::{
+    Color, GridComponent, RenderCommand, RenderState, SizeValue, SizeValue2f, ViewPortSize,
+};
 use render::grid_system::GridSystem;
 use specs::{Builder, Dispatcher, DispatcherBuilder, World, WorldExt};
 
@@ -28,22 +30,18 @@ pub extern "C" fn init_world() {
     world.register::<RenderCommand>();
     world.register::<GridComponent>();
     world.insert(RenderState::default());
+    world.insert(ViewPortSize::default());
 
     world
         .create_entity()
         .with(GridComponent {
-            position: Pos2f { x: 0.0, y: 0.0 },
-            size: Size2f {
-                width: 800.0,
-                height: 600.0,
-            },
             color: Color {
-                r: 1.0,
+                r: 0.0,
                 g: 0.0,
                 b: 0.0,
-                a: 1.0,
+                a: 0.2,
             },
-            step: 32,
+            step: 16,
         })
         .build();
 
@@ -97,28 +95,35 @@ pub struct RawBuffer {
 }
 
 #[no_mangle]
-pub extern "C" fn get_render_commands() -> RawBuffer {
-    unsafe {
-        let application_state = get_application_state();
-        let state = application_state.world.read_resource::<RenderState>();
+pub unsafe extern "C" fn get_render_commands() -> RawBuffer {
+    let application_state = get_application_state();
+    let state = application_state.world.read_resource::<RenderState>();
 
-        let json = serde_json::to_vec(&state.render_commands).unwrap();
+    let json = serde_json::to_vec(&state.render_commands).unwrap();
 
-        let start = application_state.memory.serialize_buffer.len();
-        let end = start + json.len();
+    let start = application_state.memory.serialize_buffer.len();
+    let end = start + json.len();
 
-        application_state
-            .memory
-            .serialize_buffer
-            .extend(json.into_iter());
+    application_state
+        .memory
+        .serialize_buffer
+        .extend(json.into_iter());
 
-        let data = application_state.memory.serialize_buffer[start..end].as_ptr();
+    let data = application_state.memory.serialize_buffer[start..end].as_ptr();
 
-        RawBuffer {
-            data,
-            length: end - start,
-        }
+    RawBuffer {
+        data,
+        length: end - start,
     }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn set_view_port_size(width: i32, height: i32) {
+    let application_state = get_application_state();
+    let mut view_port_size = application_state.world.write_resource::<ViewPortSize>();
+
+    view_port_size.width = width;
+    view_port_size.height = height;
 }
 
 #[cfg(test)]

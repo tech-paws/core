@@ -41,6 +41,19 @@ pub struct Size2f {
     pub height: f32,
 }
 
+#[derive(Component, Debug)]
+pub struct SizeValue2f {
+    pub width: SizeValue,
+    pub height: SizeValue,
+}
+
+#[derive(Component, Debug)]
+pub enum SizeValue {
+    Value(f32),
+    Fit,
+    Fill,
+}
+
 #[derive(Component, Default, Debug)]
 pub struct Color {
     pub r: f32,
@@ -51,8 +64,12 @@ pub struct Color {
 
 #[derive(Component, Default, Debug)]
 pub struct GridComponent {
-    pub position: Pos2f,
-    pub size: Size2f,
     pub step: i32,
     pub color: Color,
+}
+
+#[derive(Default)]
+pub struct ViewPortSize {
+    pub width: i32,
+    pub height: i32,
 }

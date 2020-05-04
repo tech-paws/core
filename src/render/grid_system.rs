@@ -1,28 +1,31 @@
-use crate::render::components::{GridComponent, RenderCommand, RenderState};
+use crate::render::components::{GridComponent, RenderCommand, RenderState, ViewPortSize};
 use specs::Join;
-use specs::{ReadStorage, System, Write};
+use specs::{Read, ReadStorage, System, Write};
 
 pub struct GridSystem;
 
 impl<'a> System<'a> for GridSystem {
-    type SystemData = (Write<'a, RenderState>, ReadStorage<'a, GridComponent>);
+    type SystemData = (
+        Write<'a, RenderState>,
+        Read<'a, ViewPortSize>,
+        ReadStorage<'a, GridComponent>,
+    );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (mut render_state, grid) = data;
+        let (mut render_state, viewport_size, grid) = data;
         let render_commands = &mut render_state.render_commands;
 
         for grid in grid.join() {
-            // println!("{:?}", grid);
             render_commands.push(RenderCommand::PushColorShader);
             render_commands.push(RenderCommand::PushColor {
                 r: grid.color.r,
-                g: 0.0,
-                b: 0.0,
-                a: 1.0,
+                g: grid.color.g,
+                b: grid.color.b,
+                a: grid.color.a,
             });
 
             render_commands.push(RenderCommand::SetColorUniform);
-            GridSystem::draw_lines(&grid, render_commands);
+            GridSystem::draw_lines(&grid, &viewport_size, render_commands);
         }
 
         render_commands.push(RenderCommand::DrawLines);
@@ -30,30 +33,33 @@ impl<'a> System<'a> for GridSystem {
 }
 
 impl GridSystem {
-    fn draw_lines(grid: &GridComponent, render_commands: &mut Vec<RenderCommand>) {
+    fn draw_lines(
+        grid: &GridComponent,
+        size: &ViewPortSize,
+        render_commands: &mut Vec<RenderCommand>,
+    ) {
         // Vertical lines
-        for i in (0..grid.size.width as i32).step_by(grid.step as usize) {
+        for i in (0..size.width as i32).step_by(grid.step as usize) {
             render_commands.push(RenderCommand::PushPos2f {
-                x: grid.position.x + i as f32,
-                y: grid.position.y,
+                x: i as f32,
+                y: 0.0,
             });
-
             render_commands.push(RenderCommand::PushPos2f {
-                x: grid.position.x + i as f32,
-                y: grid.position.y + grid.size.height,
+                x: i as f32,
+                y: size.height as f32,
             });
         }
 
         // Horizontal lines
-        for i in (0..grid.size.height as i32).step_by(grid.step as usize) {
+        for i in (0..size.height as i32).step_by(grid.step as usize) {
             render_commands.push(RenderCommand::PushPos2f {
-                x: grid.position.x,
-                y: grid.position.y + i as f32,
+                x: 0.0,
+                y: i as f32,
             });
 
             render_commands.push(RenderCommand::PushPos2f {
-                x: grid.position.x + grid.size.width,
-                y: grid.position.y + i as f32,
+                x: size.width as f32,
+                y: i as f32,
             });
         }
     }
