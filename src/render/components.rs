@@ -17,19 +17,27 @@ pub enum RenderCommand {
     DrawQuads,
 }
 
+#[derive(Component, Debug, Serialize, Deserialize)]
+pub enum ExectutionCommand {
+    PushPos2f { x: f32, y: f32 },
+    UpdateCameraPosition,
+}
+
 pub struct RenderState {
     pub render_commands: Vec<RenderCommand>,
+    pub exec_commands: Vec<ExectutionCommand>,
 }
 
 impl Default for RenderState {
     fn default() -> Self {
         RenderState {
             render_commands: Vec::new(),
+            exec_commands: Vec::new(),
         }
     }
 }
 
-#[derive(Component, Default, Debug)]
+#[derive(Component, Default, Debug, Clone)]
 pub struct Pos2f {
     pub x: f32,
     pub y: f32,
@@ -66,4 +74,14 @@ pub struct WorkAreaComponent {
     pub title: String,
     pub color: Color,
     pub size: Size2f,
+}
+
+#[derive(Component, Default, Debug)]
+pub struct Camera2D {
+    pub pos: Pos2f,
+}
+
+#[derive(Component, Default, Debug)]
+pub struct CameraPos2fListener {
+    pub pos: Pos2f,
 }

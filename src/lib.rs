@@ -1,7 +1,9 @@
 mod render;
 
+use render::camera_system::CameraSystem;
 use render::components::{
-    Color, GridComponent, RenderCommand, RenderState, Size2f, ViewPortSize, WorkAreaComponent,
+    Camera2D, CameraPos2fListener, Color, GridComponent, Pos2f, RenderCommand, RenderState, Size2f,
+    ViewPortSize, WorkAreaComponent,
 };
 use render::grid_system::GridSystem;
 use render::work_area::WorkAreaSystem;
@@ -31,6 +33,8 @@ pub extern "C" fn init_world() {
     world.register::<RenderCommand>();
     world.register::<GridComponent>();
     world.register::<WorkAreaComponent>();
+    world.register::<Camera2D>();
+    world.register::<CameraPos2fListener>();
 
     // Resources
     world.insert(RenderState::default());
@@ -45,8 +49,9 @@ pub extern "C" fn init_world() {
                 b: 0.0,
                 a: 0.2,
             },
-            step: 16,
+            step: 32,
         })
+        .with(CameraPos2fListener::default())
         .build();
 
     world
@@ -66,9 +71,20 @@ pub extern "C" fn init_world() {
         })
         .build();
 
+    world
+        .create_entity()
+        .with(Camera2D {
+            pos: Pos2f {
+                x: -400.0,
+                y: -300.0,
+            },
+        })
+        .build();
+
     let dispatcher = DispatcherBuilder::new()
-        .with(GridSystem, "grid", &[])
         .with(WorkAreaSystem, "work_area", &[])
+        .with(CameraSystem, "camera", &[])
+        .with(GridSystem, "grid", &["camera"])
         .build();
 
     let memory = Memory {
@@ -107,6 +123,7 @@ unsafe fn flush() {
 
     application_state.memory.serialize_buffer.clear();
     state.render_commands.clear();
+    state.exec_commands.clear();
 }
 
 #[repr(C)]
@@ -122,6 +139,29 @@ pub unsafe extern "C" fn get_render_commands() -> RawBuffer {
     let state = application_state.world.read_resource::<RenderState>();
 
     let json = serde_json::to_vec(&state.render_commands).unwrap();
+
+    let start = application_state.memory.serialize_buffer.len();
+    let end = start + json.len();
+
+    application_state
+        .memory
+        .serialize_buffer
+        .extend(json.into_iter());
+
+    let data = application_state.memory.serialize_buffer[start..end].as_ptr();
+
+    RawBuffer {
+        data,
+        length: end - start,
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn get_exec_commands() -> RawBuffer {
+    let application_state = get_application_state();
+    let state = application_state.world.read_resource::<RenderState>();
+
+    let json = serde_json::to_vec(&state.exec_commands).unwrap();
 
     let start = application_state.memory.serialize_buffer.len();
     let end = start + json.len();
