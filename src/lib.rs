@@ -1,9 +1,10 @@
 mod render;
 
 use render::components::{
-    Color, GridComponent, RenderCommand, RenderState, SizeValue, SizeValue2f, ViewPortSize,
+    Color, GridComponent, RenderCommand, RenderState, Size2f, ViewPortSize, WorkAreaComponent,
 };
 use render::grid_system::GridSystem;
+use render::work_area::WorkAreaSystem;
 use specs::{Builder, Dispatcher, DispatcherBuilder, World, WorldExt};
 
 struct Memory {
@@ -29,6 +30,9 @@ pub extern "C" fn init_world() {
 
     world.register::<RenderCommand>();
     world.register::<GridComponent>();
+    world.register::<WorkAreaComponent>();
+
+    // Resources
     world.insert(RenderState::default());
     world.insert(ViewPortSize::default());
 
@@ -45,8 +49,26 @@ pub extern "C" fn init_world() {
         })
         .build();
 
+    world
+        .create_entity()
+        .with(WorkAreaComponent {
+            title: String::from("Hello world!"),
+            color: Color {
+                r: 0.0,
+                g: 0.0,
+                b: 1.0,
+                a: 1.0,
+            },
+            size: Size2f {
+                width: 800.0,
+                height: 600.0,
+            },
+        })
+        .build();
+
     let dispatcher = DispatcherBuilder::new()
         .with(GridSystem, "grid", &[])
+        .with(WorkAreaSystem, "work_area", &[])
         .build();
 
     let memory = Memory {
