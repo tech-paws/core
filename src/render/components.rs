@@ -1,9 +1,8 @@
 use std::default::Default;
 
 use serde::{Deserialize, Serialize};
-use specs::{Component, DenseVecStorage};
 
-#[derive(Component, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum RenderCommand {
     PushColor { r: f32, g: f32, b: f32, a: f32 },
     PushPos2f { x: f32, y: f32 },
@@ -17,13 +16,13 @@ pub enum RenderCommand {
     DrawQuads,
 }
 
-#[derive(Component, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum ExectutionCommand {
     PushPos2f { x: f32, y: f32 },
     UpdateCameraPosition,
 }
 
-#[derive(Component, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum ActionCommand {
     OnTouchStart { x: f32, y: f32 },
     OnTouchEnd { x: f32, y: f32 },
@@ -46,19 +45,19 @@ impl Default for RenderState {
     }
 }
 
-#[derive(Component, Default, Debug, Clone)]
+#[derive(Copy, Default, Debug, Clone)]
 pub struct Pos2f {
     pub x: f32,
     pub y: f32,
 }
 
-#[derive(Component, Default, Debug)]
+#[derive(Clone, Copy, PartialEq, Default, Debug)]
 pub struct Size2f {
     pub width: f32,
     pub height: f32,
 }
 
-#[derive(Component, Default, Debug)]
+#[derive(Clone, PartialEq, Copy, Default, Debug)]
 pub struct Color {
     pub r: f32,
     pub g: f32,
@@ -66,7 +65,7 @@ pub struct Color {
     pub a: f32,
 }
 
-#[derive(Component, Default, Debug)]
+#[derive(Clone, Copy, PartialEq, Default, Debug)]
 pub struct GridComponent {
     pub step: i32,
     pub color: Color,
@@ -78,24 +77,36 @@ pub struct ViewPortSize {
     pub height: i32,
 }
 
-#[derive(Component, Default, Debug)]
+#[derive(Default, Debug)]
 pub struct WorkAreaComponent {
     pub title: String,
     pub color: Color,
     pub size: Size2f,
 }
 
-#[derive(Component, Default, Debug)]
+#[derive(Default, Debug)]
 pub struct Camera2D {
     pub tag: usize,
     pub pos: Pos2f,
 }
 
-#[derive(Component, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct CameraPos2fListener {
     pub tag: usize,
     pub pos: Pos2f,
 }
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Actions;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct OnCameraTouchStart;
+
+#[derive(Clone, Copy, Debug)]
+pub struct OnCameraTouchMove;
+
+#[derive(Clone, Copy, Debug)]
+pub struct OnCameraTouchEnd;
 
 impl CameraPos2fListener {
     pub fn new(tag: usize) -> CameraPos2fListener {

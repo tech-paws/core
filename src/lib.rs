@@ -1,23 +1,21 @@
 mod render;
 
-use render::camera_system::CameraSystem;
-use render::components::{
-    ActionCommand, Camera2D, CameraPos2fListener, Color, GridComponent, Pos2f, RenderCommand,
-    RenderState, Size2f, ViewPortSize, WorkAreaComponent,
-};
-use render::grid_system::GridSystem;
-use render::work_area::WorkAreaSystem;
-use render::move_camera_system::MoveCameraSystem;
-use specs::{Builder, Dispatcher, DispatcherBuilder, World, WorldExt};
+use legion::prelude::*;
+use render::camera_system::camera_system;
+use render::components::*;
+use render::grid_system::grid_system;
+use render::move_camera_system::move_camera_system;
+use render::work_area::work_area_system;
 
 struct Memory {
     serialize_buffer: Vec<u8>,
 }
 
 struct ApplicationState {
-    dispatcher: Dispatcher<'static, 'static>,
+    universe: Universe,
     world: World,
     memory: Memory,
+    schedule: Schedule,
 }
 
 #[repr(C)]
@@ -29,35 +27,31 @@ static mut APPLICATION_STATE: Option<ApplicationState> = None;
 
 #[no_mangle]
 pub extern "C" fn init_world() {
-    let mut world = World::new();
+    let universe = Universe::new();
+    let mut world = universe.create_world();
 
-    world.register::<RenderCommand>();
-    world.register::<GridComponent>();
-    world.register::<WorkAreaComponent>();
-    world.register::<Camera2D>();
-    world.register::<CameraPos2fListener>();
+    world.resources.insert(RenderState::default());
+    world.resources.insert(ViewPortSize::default());
 
-    // Resources
-    world.insert(RenderState::default());
-    world.insert(ViewPortSize::default());
-
-    world
-        .create_entity()
-        .with(GridComponent {
-            color: Color {
-                r: 0.0,
-                g: 0.0,
-                b: 0.0,
-                a: 0.2,
+    world.insert(
+        (),
+        vec![(
+            GridComponent {
+                color: Color {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 0.2,
+                },
+                step: 32,
             },
-            step: 32,
-        })
-        .with(CameraPos2fListener::new(0))
-        .build();
+            CameraPos2fListener::new(0),
+        )],
+    );
 
-    world
-        .create_entity()
-        .with(WorkAreaComponent {
+    world.insert(
+        (),
+        vec![(WorkAreaComponent {
             title: String::from("Hello world!"),
             color: Color {
                 r: 0.0,
@@ -69,36 +63,38 @@ pub extern "C" fn init_world() {
                 width: 640.0,
                 height: 480.0,
             },
-        })
-        .build();
+        },)],
+    );
 
-    world
-        .create_entity()
-        .with(Camera2D {
+    world.insert(
+        (),
+        vec![(Camera2D {
             tag: 0,
             pos: Pos2f {
                 x: -320.0,
                 y: -240.0,
             },
-        })
-        .build();
-
-    let dispatcher = DispatcherBuilder::new()
-        .with(WorkAreaSystem, "work_area", &[])
-        .with(MoveCameraSystem::default(), "move_camera", &[])
-        .with(CameraSystem, "camera", &["move_camera"])
-        .with(GridSystem, "grid", &["camera"])
-        .build();
+        },)],
+    );
 
     let memory = Memory {
         serialize_buffer: Vec::with_capacity(1_000_000_000),
     };
 
+    let schedule = Schedule::builder()
+        .add_system(grid_system())
+        .add_system(camera_system())
+        .add_system(work_area_system())
+        .add_system(move_camera_system())
+        .flush()
+        .build();
+
     unsafe {
         APPLICATION_STATE = Some(ApplicationState {
+            universe,
             world,
-            dispatcher,
             memory,
+            schedule,
         });
     }
 }
@@ -113,35 +109,67 @@ unsafe fn get_application_state() -> &'static mut ApplicationState {
 pub extern "C" fn step() {
     unsafe {
         let state = get_application_state();
-        handle_action_commands(&state.world);
+        handle_action_commands(&mut state.world);
         flush();
 
-        state.dispatcher.dispatch(&mut state.world);
-        state.world.maintain();
+        state.schedule.execute(&mut state.world);
+        delete_action_entities(&mut state.world);
     }
 }
 
-fn handle_action_commands(world: &World) {
-    let state = world.read_resource::<RenderState>();
+fn delete_action_entities(world: &mut World) {
+    <(Read<Actions>,)>::query()
+        // .filter(tag::<Actions>())
+        .iter_entities(world)
+        .map(|entity| entity.0)
+        .collect::<Vec<Entity>>()
+        .iter()
+        .for_each(|entity| {
+            world.delete(*entity);
+        });
+}
+
+unsafe fn handle_action_commands(world: &mut World) {
+    let state = world.resources.get::<RenderState>().unwrap();
 
     for command in &state.action_commands {
         handle_action_command(command);
     }
 }
 
-fn handle_action_command(action_command: &ActionCommand) {
+unsafe fn handle_action_command(action_command: &ActionCommand) {
+    let state = get_application_state();
+    let world = &mut state.world;
+
     match action_command {
         ActionCommand::OnTouchStart { x, y } => {
-
+            world.insert(
+                (OnCameraTouchStart,),
+                vec![(Actions, Pos2f { x: *x, y: *y })],
+            );
         }
-        ActionCommand::OnTouchEnd { x, y } => {}
-        ActionCommand::OnTouchMove { x, y } => {}
+        ActionCommand::OnTouchEnd { x, y } => {
+            world.insert(
+                (OnCameraTouchStart,),
+                vec![(Actions, Pos2f { x: *x, y: *y })],
+            );
+        }
+        ActionCommand::OnTouchMove { x, y } => {
+            world.insert(
+                (OnCameraTouchStart,),
+                vec![(Actions, Pos2f { x: *x, y: *y })],
+            );
+        }
     }
 }
 
 unsafe fn flush() {
     let application_state = get_application_state();
-    let mut state = application_state.world.write_resource::<RenderState>();
+    let mut state = application_state
+        .world
+        .resources
+        .get_mut::<RenderState>()
+        .unwrap();
 
     application_state.memory.serialize_buffer.clear();
     state.render_commands.clear();
@@ -159,7 +187,11 @@ pub struct RawBuffer {
 #[no_mangle]
 pub unsafe extern "C" fn get_render_commands() -> RawBuffer {
     let application_state = get_application_state();
-    let state = application_state.world.read_resource::<RenderState>();
+    let state = application_state
+        .world
+        .resources
+        .get::<RenderState>()
+        .unwrap();
 
     let json = serde_json::to_vec(&state.render_commands).unwrap();
 
@@ -182,7 +214,11 @@ pub unsafe extern "C" fn get_render_commands() -> RawBuffer {
 #[no_mangle]
 pub unsafe extern "C" fn get_exec_commands() -> RawBuffer {
     let application_state = get_application_state();
-    let state = application_state.world.read_resource::<RenderState>();
+    let state = application_state
+        .world
+        .resources
+        .get::<RenderState>()
+        .unwrap();
 
     let json = serde_json::to_vec(&state.exec_commands).unwrap();
 
@@ -205,7 +241,11 @@ pub unsafe extern "C" fn get_exec_commands() -> RawBuffer {
 #[no_mangle]
 pub unsafe extern "C" fn set_view_port_size(width: i32, height: i32) {
     let application_state = get_application_state();
-    let mut view_port_size = application_state.world.write_resource::<ViewPortSize>();
+    let mut view_port_size = application_state
+        .world
+        .resources
+        .get_mut::<ViewPortSize>()
+        .unwrap();
 
     view_port_size.width = width;
     view_port_size.height = height;
