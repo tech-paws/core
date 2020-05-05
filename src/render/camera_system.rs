@@ -17,18 +17,23 @@ impl<'a> System<'a> for CameraSystem {
     fn run(&mut self, data: Self::SystemData) {
         let (mut render_state, view_port_size, camera, mut listener) = data;
         let exec_commands = &mut render_state.exec_commands;
-        let mut pos = Pos2f::default();
+
+        // TODO: Remove hardcode - 2
+        let mut pos = vec![Pos2f::default(); 2];
 
         for camera in camera.join() {
-            pos.x = view_port_size.width as f32 / 2.0 + camera.pos.x;
-            pos.y = view_port_size.height as f32 / 2.0 + camera.pos.y;
+            pos[camera.tag].x = view_port_size.width as f32 / 2.0 + camera.pos.x;
+            pos[camera.tag].y = view_port_size.height as f32 / 2.0 + camera.pos.y;
 
-            exec_commands.push(ExectutionCommand::PushPos2f { x: pos.x, y: pos.y });
+            exec_commands.push(ExectutionCommand::PushPos2f {
+                x: pos[camera.tag].x,
+                y: pos[camera.tag].y,
+            });
             exec_commands.push(ExectutionCommand::UpdateCameraPosition);
         }
 
         for camera_listener in (&mut listener).join() {
-            camera_listener.pos = pos.clone();
+            camera_listener.pos = pos[camera_listener.tag].clone();
         }
     }
 }

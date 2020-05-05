@@ -2,11 +2,12 @@ mod render;
 
 use render::camera_system::CameraSystem;
 use render::components::{
-    Camera2D, CameraPos2fListener, Color, GridComponent, Pos2f, RenderCommand, RenderState, Size2f,
-    ViewPortSize, WorkAreaComponent,
+    ActionCommand, Camera2D, CameraPos2fListener, Color, GridComponent, Pos2f, RenderCommand,
+    RenderState, Size2f, ViewPortSize, WorkAreaComponent,
 };
 use render::grid_system::GridSystem;
 use render::work_area::WorkAreaSystem;
+use render::move_camera_system::MoveCameraSystem;
 use specs::{Builder, Dispatcher, DispatcherBuilder, World, WorldExt};
 
 struct Memory {
@@ -51,7 +52,7 @@ pub extern "C" fn init_world() {
             },
             step: 32,
         })
-        .with(CameraPos2fListener::default())
+        .with(CameraPos2fListener::new(0))
         .build();
 
     world
@@ -65,8 +66,8 @@ pub extern "C" fn init_world() {
                 a: 1.0,
             },
             size: Size2f {
-                width: 800.0,
-                height: 600.0,
+                width: 640.0,
+                height: 480.0,
             },
         })
         .build();
@@ -74,16 +75,18 @@ pub extern "C" fn init_world() {
     world
         .create_entity()
         .with(Camera2D {
+            tag: 0,
             pos: Pos2f {
-                x: -400.0,
-                y: -300.0,
+                x: -320.0,
+                y: -240.0,
             },
         })
         .build();
 
     let dispatcher = DispatcherBuilder::new()
         .with(WorkAreaSystem, "work_area", &[])
-        .with(CameraSystem, "camera", &[])
+        .with(MoveCameraSystem::default(), "move_camera", &[])
+        .with(CameraSystem, "camera", &["move_camera"])
         .with(GridSystem, "grid", &["camera"])
         .build();
 
@@ -110,10 +113,29 @@ unsafe fn get_application_state() -> &'static mut ApplicationState {
 pub extern "C" fn step() {
     unsafe {
         let state = get_application_state();
+        handle_action_commands(&state.world);
         flush();
 
         state.dispatcher.dispatch(&mut state.world);
         state.world.maintain();
+    }
+}
+
+fn handle_action_commands(world: &World) {
+    let state = world.read_resource::<RenderState>();
+
+    for command in &state.action_commands {
+        handle_action_command(command);
+    }
+}
+
+fn handle_action_command(action_command: &ActionCommand) {
+    match action_command {
+        ActionCommand::OnTouchStart { x, y } => {
+
+        }
+        ActionCommand::OnTouchEnd { x, y } => {}
+        ActionCommand::OnTouchMove { x, y } => {}
     }
 }
 
@@ -124,6 +146,7 @@ unsafe fn flush() {
     application_state.memory.serialize_buffer.clear();
     state.render_commands.clear();
     state.exec_commands.clear();
+    state.action_commands.clear();
 }
 
 #[repr(C)]

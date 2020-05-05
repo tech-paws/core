@@ -23,9 +23,17 @@ pub enum ExectutionCommand {
     UpdateCameraPosition,
 }
 
+#[derive(Component, Debug, Serialize, Deserialize)]
+pub enum ActionCommand {
+    OnTouchStart { x: f32, y: f32 },
+    OnTouchEnd { x: f32, y: f32 },
+    OnTouchMove { x: f32, y: f32 },
+}
+
 pub struct RenderState {
     pub render_commands: Vec<RenderCommand>,
     pub exec_commands: Vec<ExectutionCommand>,
+    pub action_commands: Vec<ActionCommand>,
 }
 
 impl Default for RenderState {
@@ -33,6 +41,7 @@ impl Default for RenderState {
         RenderState {
             render_commands: Vec::new(),
             exec_commands: Vec::new(),
+            action_commands: Vec::new(),
         }
     }
 }
@@ -78,10 +87,21 @@ pub struct WorkAreaComponent {
 
 #[derive(Component, Default, Debug)]
 pub struct Camera2D {
+    pub tag: usize,
     pub pos: Pos2f,
 }
 
-#[derive(Component, Default, Debug)]
+#[derive(Component, Debug)]
 pub struct CameraPos2fListener {
+    pub tag: usize,
     pub pos: Pos2f,
+}
+
+impl CameraPos2fListener {
+    pub fn new(tag: usize) -> CameraPos2fListener {
+        return CameraPos2fListener {
+            tag,
+            pos: Pos2f::default(),
+        };
+    }
 }
