@@ -1,5 +1,8 @@
 mod render;
 
+use std::str;
+use std::slice;
+
 use legion::prelude::*;
 use render::camera_system::camera_system;
 use render::components::*;
@@ -12,7 +15,7 @@ struct Memory {
 }
 
 struct ApplicationState {
-    universe: Universe,
+    _universe: Universe,
     world: World,
     memory: Memory,
     schedule: Schedule,
@@ -30,7 +33,7 @@ pub extern "C" fn init_world() {
     let universe = Universe::new();
     let mut world = universe.create_world();
 
-    world.resources.insert(RenderState::default());
+    world.resources.insert(CommandsState::default());
     world.resources.insert(ViewPortSize::default());
 
     world.insert(
@@ -91,7 +94,7 @@ pub extern "C" fn init_world() {
 
     unsafe {
         APPLICATION_STATE = Some(ApplicationState {
-            universe,
+            _universe: universe,
             world,
             memory,
             schedule,
@@ -109,7 +112,7 @@ unsafe fn get_application_state() -> &'static mut ApplicationState {
 pub extern "C" fn step() {
     unsafe {
         let state = get_application_state();
-        handle_action_commands(&mut state.world);
+        handle_request_commands(&mut state.world);
         flush();
 
         state.schedule.execute(&mut state.world);
@@ -119,7 +122,6 @@ pub extern "C" fn step() {
 
 fn delete_action_entities(world: &mut World) {
     <(Read<Actions>,)>::query()
-        // .filter(tag::<Actions>())
         .iter_entities(world)
         .map(|entity| entity.0)
         .collect::<Vec<Entity>>()
@@ -129,36 +131,30 @@ fn delete_action_entities(world: &mut World) {
         });
 }
 
-unsafe fn handle_action_commands(world: &mut World) {
-    let state = world.resources.get::<RenderState>().unwrap();
+unsafe fn handle_request_commands(world: &mut World) {
+    let state = world.resources.get::<CommandsState>().unwrap();
 
-    for command in &state.action_commands {
-        handle_action_command(command);
+    for command in &state.request_commands {
+        handle_request_command(command);
     }
 }
 
-unsafe fn handle_action_command(action_command: &ActionCommand) {
+unsafe fn handle_request_command(action_command: &RequestCommand) {
     let state = get_application_state();
     let world = &mut state.world;
 
     match action_command {
-        ActionCommand::OnTouchStart { x, y } => {
-            world.insert(
-                (OnCameraTouchStart,),
-                vec![(Actions, Pos2f { x: *x, y: *y })],
-            );
+        RequestCommand::SetViewportSize { width, height } => {
+            set_view_port_size(*width, *height);
         }
-        ActionCommand::OnTouchEnd { x, y } => {
-            world.insert(
-                (OnCameraTouchStart,),
-                vec![(Actions, Pos2f { x: *x, y: *y })],
-            );
+        RequestCommand::OnTouchStart { x, y } => {
+            world.insert((), vec![(Actions, Pos2f { x: *x, y: *y })]);
         }
-        ActionCommand::OnTouchMove { x, y } => {
-            world.insert(
-                (OnCameraTouchStart,),
-                vec![(Actions, Pos2f { x: *x, y: *y })],
-            );
+        RequestCommand::OnTouchEnd { x, y } => {
+            world.insert((), vec![(Actions, Pos2f { x: *x, y: *y })]);
+        }
+        RequestCommand::OnTouchMove { x, y } => {
+            world.insert((), vec![(Actions, Pos2f { x: *x, y: *y })]);
         }
     }
 }
@@ -168,13 +164,13 @@ unsafe fn flush() {
     let mut state = application_state
         .world
         .resources
-        .get_mut::<RenderState>()
+        .get_mut::<CommandsState>()
         .unwrap();
 
     application_state.memory.serialize_buffer.clear();
     state.render_commands.clear();
     state.exec_commands.clear();
-    state.action_commands.clear();
+    state.request_commands.clear();
 }
 
 #[repr(C)]
@@ -190,7 +186,7 @@ pub unsafe extern "C" fn get_render_commands() -> RawBuffer {
     let state = application_state
         .world
         .resources
-        .get::<RenderState>()
+        .get::<CommandsState>()
         .unwrap();
 
     let json = serde_json::to_vec(&state.render_commands).unwrap();
@@ -217,7 +213,7 @@ pub unsafe extern "C" fn get_exec_commands() -> RawBuffer {
     let state = application_state
         .world
         .resources
-        .get::<RenderState>()
+        .get::<CommandsState>()
         .unwrap();
 
     let json = serde_json::to_vec(&state.exec_commands).unwrap();
@@ -239,7 +235,21 @@ pub unsafe extern "C" fn get_exec_commands() -> RawBuffer {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn set_view_port_size(width: i32, height: i32) {
+unsafe extern "C" fn send_request_commands(data: RawBuffer) {
+    let application_state = get_application_state();
+    let mut state = application_state
+        .world
+        .resources
+        .get_mut::<CommandsState>()
+        .unwrap();
+
+    let bytes = slice::from_raw_parts(data.data, data.length);
+    let requests = serde_json::from_slice::<Vec<RequestCommand>>(bytes).unwrap();
+
+    state.request_commands.extend(requests.into_iter());
+}
+
+unsafe fn set_view_port_size(width: i32, height: i32) {
     let application_state = get_application_state();
     let mut view_port_size = application_state
         .world
@@ -256,13 +266,21 @@ mod tests {
     #[test]
     fn it_works() {
         crate::init_world();
+        let json = "[{\"SetViewportSize\": {\"width\": 100, \"height\": 200}}]".as_bytes();
+        let data = crate::RawBuffer {
+            data: json.as_ptr(),
+            length: json.len(),
+        };
+        unsafe {
+            crate::send_request_commands(data);
+        }
         crate::step();
-        crate::get_render_commands();
-        crate::get_render_commands();
-        crate::step();
-        let data = crate::get_render_commands();
+        // crate::get_render_commands();
+        // crate::get_render_commands();
+        // crate::step();
+        // let data = crate::get_render_commands();
 
-        dbg!(data);
+        // dbg!(data);
 
         assert_eq!(2 + 2, 4);
     }

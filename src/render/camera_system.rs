@@ -1,11 +1,11 @@
 use crate::render::components::{
-    Camera2D, CameraPos2fListener, ExectutionCommand, Pos2f, RenderState, ViewPortSize,
+    Camera2D, CameraPos2fListener, ExectutionCommand, Pos2f, CommandsState, ViewPortSize,
 };
 use legion::prelude::*;
 
 pub fn camera_system() -> Box<dyn Schedulable> {
     SystemBuilder::new("camera_system")
-        .write_resource::<RenderState>()
+        .write_resource::<CommandsState>()
         .read_resource::<ViewPortSize>()
         .with_query(<(Read<Camera2D>,)>::query())
         .with_query(<(Write<CameraPos2fListener>,)>::query())

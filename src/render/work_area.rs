@@ -1,9 +1,9 @@
-use crate::render::components::{RenderCommand, RenderState, WorkAreaComponent};
+use crate::render::components::{RenderCommand, CommandsState, WorkAreaComponent};
 use legion::prelude::*;
 
 pub fn work_area_system() -> Box<dyn Schedulable> {
     SystemBuilder::new("work_area_system")
-        .write_resource::<RenderState>()
+        .write_resource::<CommandsState>()
         .with_query(<(Read<WorkAreaComponent>,)>::query())
         .build(|_, mut world, render_state, query| {
             let render_commands = &mut render_state.render_commands;

@@ -23,24 +23,25 @@ pub enum ExectutionCommand {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum ActionCommand {
+pub enum RequestCommand {
+    SetViewportSize { width: i32, height: i32 },
     OnTouchStart { x: f32, y: f32 },
     OnTouchEnd { x: f32, y: f32 },
     OnTouchMove { x: f32, y: f32 },
 }
 
-pub struct RenderState {
+pub struct CommandsState {
     pub render_commands: Vec<RenderCommand>,
     pub exec_commands: Vec<ExectutionCommand>,
-    pub action_commands: Vec<ActionCommand>,
+    pub request_commands: Vec<RequestCommand>,
 }
 
-impl Default for RenderState {
+impl Default for CommandsState {
     fn default() -> Self {
-        RenderState {
+        CommandsState {
             render_commands: Vec::new(),
             exec_commands: Vec::new(),
-            action_commands: Vec::new(),
+            request_commands: Vec::new(),
         }
     }
 }
@@ -71,7 +72,7 @@ pub struct GridComponent {
     pub color: Color,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ViewPortSize {
     pub width: i32,
     pub height: i32,
@@ -110,9 +111,22 @@ pub struct OnCameraTouchEnd;
 
 impl CameraPos2fListener {
     pub fn new(tag: usize) -> CameraPos2fListener {
-        return CameraPos2fListener {
+        CameraPos2fListener {
             tag,
             pos: Pos2f::default(),
-        };
+        }
     }
+}
+
+pub enum Touch {
+    None,
+    Start,
+    Move,
+    End,
+}
+
+pub struct TouchState {
+    pub touch: Touch,
+    pub touch_start: Pos2f,
+    pub touch_current: Pos2f,
 }

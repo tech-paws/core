@@ -1,11 +1,11 @@
 use crate::render::components::{
-    CameraPos2fListener, GridComponent, RenderCommand, RenderState, ViewPortSize,
+    CameraPos2fListener, GridComponent, RenderCommand, CommandsState, ViewPortSize,
 };
 use legion::prelude::*;
 
 pub fn grid_system() -> Box<dyn Schedulable> {
     SystemBuilder::new("grid_system")
-        .write_resource::<RenderState>()
+        .write_resource::<CommandsState>()
         .read_resource::<ViewPortSize>()
         .with_query(<(Read<GridComponent>, Read<CameraPos2fListener>)>::query())
         .build(|_, world, (render_state, view_port_size), query| {
