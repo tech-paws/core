@@ -235,7 +235,7 @@ pub unsafe extern "C" fn get_exec_commands() -> RawBuffer {
 }
 
 #[no_mangle]
-unsafe extern "C" fn send_request_commands(data: RawBuffer) {
+pub unsafe extern "C" fn send_request_commands(data: RawBuffer) {
     let application_state = get_application_state();
     let mut state = application_state
         .world
