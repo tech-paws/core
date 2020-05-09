@@ -1,13 +1,12 @@
 mod render;
 
-use std::str;
 use std::slice;
 
 use legion::prelude::*;
 use render::camera_system::camera_system;
 use render::components::*;
 use render::grid_system::grid_system;
-use render::move_camera_system::move_camera_system;
+use render::move_camera_system::{move_camera_system, render_touch_system};
 use render::work_area::work_area_system;
 
 struct Memory {
@@ -80,6 +79,11 @@ pub extern "C" fn init_world() {
         },)],
     );
 
+    world.insert(
+        (),
+        vec![(TouchState::default(), CameraPos2fListener::new(0))],
+    );
+
     let memory = Memory {
         serialize_buffer: Vec::with_capacity(1_000_000_000),
     };
@@ -89,6 +93,7 @@ pub extern "C" fn init_world() {
         .add_system(camera_system())
         .add_system(work_area_system())
         .add_system(move_camera_system())
+        .add_system(render_touch_system())
         .flush()
         .build();
 
@@ -148,13 +153,35 @@ unsafe fn handle_request_command(action_command: &RequestCommand) {
             set_view_port_size(*width, *height);
         }
         RequestCommand::OnTouchStart { x, y } => {
-            world.insert((), vec![(Actions, Pos2f { x: *x, y: *y })]);
+            let query = <(Write<TouchState>,)>::query();
+
+            for (mut touch_state,) in query.iter(world) {
+                println!("{:?}", touch_state);
+
+                touch_state.touch = Touch::Start;
+                touch_state.touch_start = Pos2f { x: *x, y: *y };
+                touch_state.touch_current = Pos2f { x: *x, y: *y };
+            }
         }
         RequestCommand::OnTouchEnd { x, y } => {
-            world.insert((), vec![(Actions, Pos2f { x: *x, y: *y })]);
+            let query = <(Write<TouchState>,)>::query();
+
+            for (mut touch_state,) in query.iter(world) {
+                if touch_state.touch == Touch::Move {
+                    touch_state.touch = Touch::End;
+                    touch_state.touch_current = Pos2f { x: *x, y: *y };
+                }
+            }
         }
         RequestCommand::OnTouchMove { x, y } => {
-            world.insert((), vec![(Actions, Pos2f { x: *x, y: *y })]);
+            let query = <(Write<TouchState>,)>::query();
+
+            for (mut touch_state,) in query.iter(world) {
+                if touch_state.touch == Touch::Start || touch_state.touch == Touch::Move {
+                    touch_state.touch = Touch::Move;
+                    touch_state.touch_current = Pos2f { x: *x, y: *y };
+                }
+            }
         }
     }
 }

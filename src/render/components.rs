@@ -118,6 +118,7 @@ impl CameraPos2fListener {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Touch {
     None,
     Start,
@@ -125,8 +126,19 @@ pub enum Touch {
     End,
 }
 
+#[derive(Debug)]
 pub struct TouchState {
     pub touch: Touch,
     pub touch_start: Pos2f,
     pub touch_current: Pos2f,
+}
+
+impl Default for TouchState {
+    fn default() -> Self {
+        TouchState {
+            touch: Touch::None,
+            touch_start: Pos2f::default(),
+            touch_current: Pos2f::default(),
+        }
+    }
 }
