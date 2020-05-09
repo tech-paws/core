@@ -70,18 +70,18 @@ pub extern "C" fn init_world() {
 
     world.insert(
         (),
-        vec![(Camera2D {
-            tag: 0,
-            pos: Pos2f {
-                x: -320.0,
-                y: -240.0,
+        vec![(
+            Camera2D {
+                tag: 0,
+                pos: Pos2f {
+                    x: -320.0,
+                    y: -240.0,
+                },
             },
-        },)],
-    );
-
-    world.insert(
-        (),
-        vec![(TouchState::default(), CameraPos2fListener::new(0))],
+            CameraMovable2D::default(),
+            TouchState::default(),
+            CameraPos2fListener::new(0),
+        )],
     );
 
     let memory = Memory {
@@ -89,10 +89,10 @@ pub extern "C" fn init_world() {
     };
 
     let schedule = Schedule::builder()
-        .add_system(grid_system())
-        .add_system(camera_system())
-        .add_system(work_area_system())
         .add_system(move_camera_system())
+        .add_system(camera_system())
+        .add_system(grid_system())
+        .add_system(work_area_system())
         .add_system(render_touch_system())
         .flush()
         .build();
@@ -156,8 +156,6 @@ unsafe fn handle_request_command(action_command: &RequestCommand) {
             let query = <(Write<TouchState>,)>::query();
 
             for (mut touch_state,) in query.iter(world) {
-                println!("{:?}", touch_state);
-
                 touch_state.touch = Touch::Start;
                 touch_state.touch_start = Pos2f { x: *x, y: *y };
                 touch_state.touch_current = Pos2f { x: *x, y: *y };
@@ -167,7 +165,7 @@ unsafe fn handle_request_command(action_command: &RequestCommand) {
             let query = <(Write<TouchState>,)>::query();
 
             for (mut touch_state,) in query.iter(world) {
-                if touch_state.touch == Touch::Move {
+                if touch_state.touch == Touch::Start || touch_state.touch == Touch::Move {
                     touch_state.touch = Touch::End;
                     touch_state.touch_current = Pos2f { x: *x, y: *y };
                 }

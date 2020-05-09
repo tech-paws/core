@@ -1,13 +1,29 @@
 use crate::render::components::{
-    Camera2D, CameraPos2fListener, CommandsState, Pos2f, RenderCommand, Size2f, TouchState,
-    ViewPortSize, Touch
+    Camera2D, CameraMovable2D, CameraPos2fListener, CommandsState, Pos2f, RenderCommand, Size2f,
+    Touch, TouchState, ViewPortSize,
 };
 use legion::prelude::*;
 
 pub fn move_camera_system() -> Box<dyn Schedulable> {
     SystemBuilder::new("move_camera_system")
-        .with_query(<(Write<Camera2D>,)>::query())
-        .build(|_, mut _world, _, _query| {})
+        .with_query(<(Write<Camera2D>, Write<CameraMovable2D>, Read<TouchState>)>::query())
+        .build(|_, mut world, _, query| {
+            for (mut camera, mut camera_movable, touch_state) in query.iter(&mut world) {
+                if touch_state.touch != Touch::Move {
+                    camera_movable.last_pos = camera.pos;
+                }
+
+                if touch_state.touch == Touch::None || touch_state.touch == Touch::End {
+                    break;
+                }
+
+                camera.pos.x = camera_movable.last_pos.x - touch_state.touch_start.x
+                    + touch_state.touch_current.x;
+
+                camera.pos.y = camera_movable.last_pos.y + touch_state.touch_start.y
+                    - touch_state.touch_current.y;
+            }
+        })
 }
 
 pub fn render_touch_system() -> Box<dyn Schedulable> {
@@ -39,7 +55,9 @@ pub fn render_touch_system() -> Box<dyn Schedulable> {
                 };
                 let pos = Pos2f {
                     x: -camera_listener.pos.x - 16.0 + touch.touch_current.x,
-                    y: view_port_size.height as f32 - camera_listener.pos.y - 16.0
+                    y: view_port_size.height as f32
+                        - camera_listener.pos.y
+                        - 16.0
                         - touch.touch_current.y,
                 };
                 render_quad_lines(pos, size, render_commands);

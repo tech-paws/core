@@ -91,6 +91,11 @@ pub struct Camera2D {
     pub pos: Pos2f,
 }
 
+#[derive(Default, Debug)]
+pub struct CameraMovable2D {
+    pub last_pos: Pos2f,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct CameraPos2fListener {
     pub tag: usize,
