@@ -2,7 +2,7 @@ use std::default::Default;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum RenderCommand {
     PushColor { r: f32, g: f32, b: f32, a: f32 },
     PushPos2f { x: f32, y: f32 },
@@ -16,13 +16,13 @@ pub enum RenderCommand {
     DrawQuads,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum ExectutionCommand {
     PushPos2f { x: f32, y: f32 },
     UpdateCameraPosition,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum RequestCommand {
     SetViewportSize { width: i32, height: i32 },
     OnTouchStart { x: f32, y: f32 },

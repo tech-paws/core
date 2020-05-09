@@ -1,6 +1,9 @@
 mod render;
 
 use std::slice;
+use std::sync::Mutex;
+
+use lazy_static::lazy_static;
 
 use legion::prelude::*;
 use render::camera_system::camera_system;
@@ -17,7 +20,6 @@ struct ApplicationState {
     _universe: Universe,
     world: World,
     memory: Memory,
-    schedule: Schedule,
 }
 
 #[repr(C)]
@@ -25,7 +27,11 @@ pub enum SerializeFormat {
     Json = 0,
 }
 
-static mut APPLICATION_STATE: Option<ApplicationState> = None;
+static mut SCHEDULER: Option<Schedule> = None;
+
+lazy_static! {
+    static ref APPLICATION_STATE: Mutex<Option<ApplicationState>> = Mutex::new(None);
+}
 
 #[no_mangle]
 pub extern "C" fn init_world() {
@@ -88,40 +94,42 @@ pub extern "C" fn init_world() {
         serialize_buffer: Vec::with_capacity(1_000_000_000),
     };
 
-    let schedule = Schedule::builder()
-        .add_system(move_camera_system())
-        .add_system(camera_system())
-        .add_system(grid_system())
-        .add_system(work_area_system())
-        .add_system(render_touch_system())
-        .flush()
-        .build();
-
     unsafe {
-        APPLICATION_STATE = Some(ApplicationState {
-            _universe: universe,
-            world,
-            memory,
-            schedule,
-        });
+        SCHEDULER = Some(
+            Schedule::builder()
+                .add_system(move_camera_system())
+                .add_system(camera_system())
+                .add_system(grid_system())
+                .add_system(work_area_system())
+                .add_system(render_touch_system())
+                .flush()
+                .build(),
+        );
     }
-}
 
-unsafe fn get_application_state() -> &'static mut ApplicationState {
-    APPLICATION_STATE
-        .as_mut()
-        .expect("ApplicationState should be presented")
+    let application_state = ApplicationState {
+        _universe: universe,
+        world,
+        memory,
+    };
+
+    APPLICATION_STATE.lock().unwrap().replace(application_state);
 }
 
 #[no_mangle]
 pub extern "C" fn step() {
-    unsafe {
-        let state = get_application_state();
-        handle_request_commands(&mut state.world);
-        flush();
+    match APPLICATION_STATE.lock().unwrap().as_mut() {
+        Some(state) => {
+            handle_request_commands(state);
+            flush(state);
 
-        state.schedule.execute(&mut state.world);
-        delete_action_entities(&mut state.world);
+            unsafe {
+                SCHEDULER.as_mut().unwrap().execute(&mut state.world);
+            }
+
+            delete_action_entities(&mut state.world);
+        }
+        None => panic!(":("),
     }
 }
 
@@ -136,21 +144,29 @@ fn delete_action_entities(world: &mut World) {
         });
 }
 
-unsafe fn handle_request_commands(world: &mut World) {
-    let state = world.resources.get::<CommandsState>().unwrap();
+fn handle_request_commands(application_state: &mut ApplicationState) {
+    let state = application_state
+        .world
+        .resources
+        .get::<CommandsState>()
+        .unwrap()
+        .request_commands
+        .to_vec();
 
-    for command in &state.request_commands {
-        handle_request_command(command);
+    for command in state {
+        handle_request_command(application_state, &command);
     }
 }
 
-unsafe fn handle_request_command(action_command: &RequestCommand) {
-    let state = get_application_state();
-    let world = &mut state.world;
+fn handle_request_command(
+    application_state: &mut ApplicationState,
+    action_command: &RequestCommand,
+) {
+    let world = &mut application_state.world;
 
     match action_command {
         RequestCommand::SetViewportSize { width, height } => {
-            set_view_port_size(*width, *height);
+            set_view_port_size(application_state, *width, *height);
         }
         RequestCommand::OnTouchStart { x, y } => {
             let query = <(Write<TouchState>,)>::query();
@@ -184,8 +200,7 @@ unsafe fn handle_request_command(action_command: &RequestCommand) {
     }
 }
 
-unsafe fn flush() {
-    let application_state = get_application_state();
+fn flush(application_state: &mut ApplicationState) {
     let mut state = application_state
         .world
         .resources
@@ -206,76 +221,87 @@ pub struct RawBuffer {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn get_render_commands() -> RawBuffer {
-    let application_state = get_application_state();
-    let state = application_state
-        .world
-        .resources
-        .get::<CommandsState>()
-        .unwrap();
+pub extern "C" fn get_render_commands() -> RawBuffer {
+    match APPLICATION_STATE.lock().unwrap().as_mut() {
+        Some(application_state) => {
+            let state = application_state
+                .world
+                .resources
+                .get::<CommandsState>()
+                .unwrap();
 
-    let json = serde_json::to_vec(&state.render_commands).unwrap();
+            let json = serde_json::to_vec(&state.render_commands).unwrap();
 
-    let start = application_state.memory.serialize_buffer.len();
-    let end = start + json.len();
+            let start = application_state.memory.serialize_buffer.len();
+            let end = start + json.len();
 
-    application_state
-        .memory
-        .serialize_buffer
-        .extend(json.into_iter());
+            application_state
+                .memory
+                .serialize_buffer
+                .extend(json.into_iter());
 
-    let data = application_state.memory.serialize_buffer[start..end].as_ptr();
+            let data = application_state.memory.serialize_buffer[start..end].as_ptr();
 
-    RawBuffer {
-        data,
-        length: end - start,
+            RawBuffer {
+                data,
+                length: end - start,
+            }
+        }
+        None => panic!(":("),
     }
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn get_exec_commands() -> RawBuffer {
-    let application_state = get_application_state();
-    let state = application_state
-        .world
-        .resources
-        .get::<CommandsState>()
-        .unwrap();
+pub extern "C" fn get_exec_commands() -> RawBuffer {
+    match APPLICATION_STATE.lock().unwrap().as_mut() {
+        Some(application_state) => {
+            let state = application_state
+                .world
+                .resources
+                .get::<CommandsState>()
+                .unwrap();
 
-    let json = serde_json::to_vec(&state.exec_commands).unwrap();
+            let json = serde_json::to_vec(&state.exec_commands).unwrap();
 
-    let start = application_state.memory.serialize_buffer.len();
-    let end = start + json.len();
+            let start = application_state.memory.serialize_buffer.len();
+            let end = start + json.len();
 
-    application_state
-        .memory
-        .serialize_buffer
-        .extend(json.into_iter());
+            application_state
+                .memory
+                .serialize_buffer
+                .extend(json.into_iter());
 
-    let data = application_state.memory.serialize_buffer[start..end].as_ptr();
+            let data = application_state.memory.serialize_buffer[start..end].as_ptr();
 
-    RawBuffer {
-        data,
-        length: end - start,
+            RawBuffer {
+                data,
+                length: end - start,
+            }
+        }
+        None => panic!(":("),
     }
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn send_request_commands(data: RawBuffer) {
-    let application_state = get_application_state();
-    let mut state = application_state
-        .world
-        .resources
-        .get_mut::<CommandsState>()
-        .unwrap();
+pub extern "C" fn send_request_commands(data: RawBuffer) {
+    match APPLICATION_STATE.lock().unwrap().as_mut() {
+        Some(application_state) => {
+            let mut state = application_state
+                .world
+                .resources
+                .get_mut::<CommandsState>()
+                .unwrap();
 
-    let bytes = slice::from_raw_parts(data.data, data.length);
-    let requests = serde_json::from_slice::<Vec<RequestCommand>>(bytes).unwrap();
+            let bytes = unsafe { slice::from_raw_parts(data.data, data.length) };
+            let requests = serde_json::from_slice::<Vec<RequestCommand>>(bytes).unwrap();
 
-    state.request_commands.extend(requests.into_iter());
+            state.request_commands.extend(requests.into_iter());
+        }
+        None => panic!(":("),
+    }
 }
 
-unsafe fn set_view_port_size(width: i32, height: i32) {
-    let application_state = get_application_state();
+fn set_view_port_size(application_state: &mut ApplicationState, width: i32, height: i32) {
     let mut view_port_size = application_state
         .world
         .resources
@@ -286,27 +312,27 @@ unsafe fn set_view_port_size(width: i32, height: i32) {
     view_port_size.height = height;
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        crate::init_world();
-        let json = "[{\"SetViewportSize\": {\"width\": 100, \"height\": 200}}]".as_bytes();
-        let data = crate::RawBuffer {
-            data: json.as_ptr(),
-            length: json.len(),
-        };
-        unsafe {
-            crate::send_request_commands(data);
-        }
-        crate::step();
-        // crate::get_render_commands();
-        // crate::get_render_commands();
-        // crate::step();
-        // let data = crate::get_render_commands();
+// #[cfg(test)]
+// mod tests {
+//     #[test]
+//     fn it_works() {
+//         crate::init_world();
+//         let json = "[{\"SetViewportSize\": {\"width\": 100, \"height\": 200}}]".as_bytes();
+//         let data = crate::RawBuffer {
+//             data: json.as_ptr(),
+//             length: json.len(),
+//         };
+//         unsafe {
+//             crate::send_request_commands(data);
+//         }
+//         crate::step();
+//         // crate::get_render_commands();
+//         // crate::get_render_commands();
+//         // crate::step();
+//         // let data = crate::get_render_commands();
 
-        // dbg!(data);
+//         // dbg!(data);
 
-        assert_eq!(2 + 2, 4);
-    }
-}
+//         assert_eq!(2 + 2, 4);
+//     }
+// }
