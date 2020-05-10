@@ -219,7 +219,7 @@ fn create_scheme_execution_command_data<'a, 'b>(
         ExecutionCommand::PushPos2f { x, y } => {
             pos2f_data = execution_schemes::Pos2f::new(x, y);
             pos2f = Some(&pos2f_data);
-        },
+        }
         ExecutionCommand::UpdateCameraPosition => {}
     }
 
@@ -229,6 +229,51 @@ fn create_scheme_execution_command_data<'a, 'b>(
     )
 }
 
-pub fn deserialize_flatbuffers_request_commands(_commands: RawBuffer) -> Vec<RequestCommand> {
-    todo!()
+pub fn deserialize_flatbuffers_request_commands(data: RawBuffer) -> Vec<RequestCommand> {
+    let bytes = unsafe { slice::from_raw_parts(data.data, data.length) };
+    let flatbuffer_commands = request_schemes::get_root_as_request_commands(bytes).commands();
+
+    match flatbuffer_commands {
+        Some(commands) => {
+            let mut vec = Vec::with_capacity(commands.len());
+
+            for command in commands {
+                let command = create_request_command_from_flatbuffers(command);
+
+                if let Some(command) = command {
+                    vec.push(command);
+                }
+            }
+
+            vec
+        }
+        None => vec![],
+    }
+}
+
+fn create_request_command_from_flatbuffers(
+    command: request_schemes::RequestCommand,
+) -> Option<RequestCommand> {
+    let data = command.data()?;
+
+    let command = match command.type_() {
+        request_schemes::RequestCommandType::SetViewportSize => RequestCommand::SetViewportSize {
+            width: data.size2i()?.width(),
+            height: data.size2i()?.height(),
+        },
+        request_schemes::RequestCommandType::OnTouchStart => RequestCommand::OnTouchStart {
+            x: data.pos2f()?.x(),
+            y: data.pos2f()?.y(),
+        },
+        request_schemes::RequestCommandType::OnTouchEnd => RequestCommand::OnTouchEnd {
+            x: data.pos2f()?.x(),
+            y: data.pos2f()?.y(),
+        },
+        request_schemes::RequestCommandType::OnTouchMove => RequestCommand::OnTouchMove {
+            x: data.pos2f()?.x(),
+            y: data.pos2f()?.y(),
+        },
+    };
+
+    Some(command)
 }

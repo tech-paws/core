@@ -17,9 +17,15 @@ struct Size2f {
     height: float;
 }
 
+struct Size2i {
+    width: int;
+    height: int;
+}
+
 table RequestCommandData {
     pos2f: Pos2f;
     size2f: Size2f;
+    size2i: Size2i;
 }
 
 table RequestCommand {
