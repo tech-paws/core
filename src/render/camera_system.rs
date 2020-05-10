@@ -1,5 +1,5 @@
 use crate::render::components::{
-    Camera2D, CameraPos2fListener, ExectutionCommand, Pos2f, CommandsState, ViewPortSize,
+    Camera2D, CameraPos2fListener, ExecutionCommand, Pos2f, CommandsState, ViewPortSize,
 };
 use legion::prelude::*;
 
@@ -18,15 +18,15 @@ pub fn camera_system() -> Box<dyn Schedulable> {
                 pos[camera.tag].x = view_port_size.width as f32 / 2.0 + camera.pos.x;
                 pos[camera.tag].y = view_port_size.height as f32 / 2.0 + camera.pos.y;
 
-                exec_commands.push(ExectutionCommand::PushPos2f {
+                exec_commands.push(ExecutionCommand::PushPos2f {
                     x: pos[camera.tag].x,
                     y: pos[camera.tag].y,
                 });
-                exec_commands.push(ExectutionCommand::UpdateCameraPosition);
+                exec_commands.push(ExecutionCommand::UpdateCameraPosition);
             }
 
             for (mut camera_listener,) in q2.iter(&mut world) {
-                camera_listener.pos = pos[camera_listener.tag].clone();
+                camera_listener.pos = pos[camera_listener.tag];
             }
         })
 }

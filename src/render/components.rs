@@ -17,7 +17,7 @@ pub enum RenderCommand {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum ExectutionCommand {
+pub enum ExecutionCommand {
     PushPos2f { x: f32, y: f32 },
     UpdateCameraPosition,
 }
@@ -32,7 +32,7 @@ pub enum RequestCommand {
 
 pub struct CommandsState {
     pub render_commands: Vec<RenderCommand>,
-    pub exec_commands: Vec<ExectutionCommand>,
+    pub exec_commands: Vec<ExecutionCommand>,
     pub request_commands: Vec<RequestCommand>,
 }
 

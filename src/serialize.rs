@@ -2,13 +2,15 @@ extern crate flatbuffers;
 
 use std::slice;
 
-use crate::render::components::{ExectutionCommand, RenderCommand, RequestCommand};
-use crate::schemas::render_commands_generated::tech_paws::backend::schemes;
+use crate::flatbuffers_execution_commands::tech_paws::backend::schemes as execution_schemes;
+use crate::flatbuffers_render_commands::tech_paws::backend::schemes as render_schemes;
+use crate::flatbuffers_request_commands::tech_paws::backend::schemes as request_schemes;
+use crate::render::components::{ExecutionCommand, RenderCommand, RequestCommand};
 use crate::{Memory, RawBuffer};
 
 pub fn serialize_json_render_commands(
     memory: &mut Memory,
-    commands: &Vec<RenderCommand>,
+    commands: &[RenderCommand],
 ) -> RawBuffer {
     let json = serde_json::to_vec(commands).unwrap();
 
@@ -27,7 +29,7 @@ pub fn serialize_json_render_commands(
 
 pub fn serialize_json_exec_commands(
     memory: &mut Memory,
-    commands: &Vec<ExectutionCommand>,
+    commands: &[ExecutionCommand],
 ) -> RawBuffer {
     let json = serde_json::to_vec(commands).unwrap();
 
@@ -51,16 +53,16 @@ pub fn deserialize_json_request_commands(data: RawBuffer) -> Vec<RequestCommand>
 
 pub fn serialize_flatbuffers_render_commands(
     memory: &mut Memory,
-    commands: &Vec<RenderCommand>,
+    commands: &[RenderCommand],
 ) -> RawBuffer {
     let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
-    let commands_schemes: Vec<flatbuffers::WIPOffset<schemes::RenderCommand>> = commands
+    let commands_schemes: Vec<flatbuffers::WIPOffset<render_schemes::RenderCommand>> = commands
         .iter()
         .map(|command| {
             let data = create_scheme_render_command_data(&mut builder, command);
-            schemes::RenderCommand::create(
+            render_schemes::RenderCommand::create(
                 &mut builder,
-                &schemes::RenderCommandArgs {
+                &render_schemes::RenderCommandArgs {
                     type_: create_scheme_render_command_type(command),
                     data: Some(data),
                 },
@@ -70,9 +72,9 @@ pub fn serialize_flatbuffers_render_commands(
 
     let commands_flatbuffers_vec = builder.create_vector(&commands_schemes);
 
-    schemes::RenderCommands::create(
+    render_schemes::RenderCommands::create(
         &mut builder,
-        &schemes::RenderCommandsArgs {
+        &render_schemes::RenderCommandsArgs {
             commands: Some(commands_flatbuffers_vec),
         },
     );
@@ -82,7 +84,7 @@ pub fn serialize_flatbuffers_render_commands(
     let start = memory.serialize_buffer.len();
     let end = start + data.len();
 
-    memory.serialize_buffer.extend(data.into_iter());
+    memory.serialize_buffer.extend(data.iter());
 
     let data = memory.serialize_buffer[start..end].as_ptr();
 
@@ -92,28 +94,28 @@ pub fn serialize_flatbuffers_render_commands(
     }
 }
 
-fn create_scheme_render_command_type(command: &RenderCommand) -> schemes::RenderCommandType {
+fn create_scheme_render_command_type(command: &RenderCommand) -> render_schemes::RenderCommandType {
     match command {
-        RenderCommand::PushColor { .. } => schemes::RenderCommandType::PushColor,
-        RenderCommand::PushPos2f { .. } => schemes::RenderCommandType::PushPos2f,
-        RenderCommand::PushSize2f { .. } => schemes::RenderCommandType::PushSize2f,
-        RenderCommand::PushTexture { .. } => schemes::RenderCommandType::PushTexture,
-        RenderCommand::SetColorUniform => schemes::RenderCommandType::SetColorUniform,
-        RenderCommand::PushColorShader => schemes::RenderCommandType::PushColorShader,
-        RenderCommand::PushTextureShader => schemes::RenderCommandType::PushTextureShader,
-        RenderCommand::DrawLines => schemes::RenderCommandType::DrawLines,
-        RenderCommand::DrawPoints => schemes::RenderCommandType::DrawPoints,
-        RenderCommand::DrawQuads => schemes::RenderCommandType::DrawQuads,
+        RenderCommand::PushColor { .. } => render_schemes::RenderCommandType::PushColor,
+        RenderCommand::PushPos2f { .. } => render_schemes::RenderCommandType::PushPos2f,
+        RenderCommand::PushSize2f { .. } => render_schemes::RenderCommandType::PushSize2f,
+        RenderCommand::PushTexture { .. } => render_schemes::RenderCommandType::PushTexture,
+        RenderCommand::SetColorUniform => render_schemes::RenderCommandType::SetColorUniform,
+        RenderCommand::PushColorShader => render_schemes::RenderCommandType::PushColorShader,
+        RenderCommand::PushTextureShader => render_schemes::RenderCommandType::PushTextureShader,
+        RenderCommand::DrawLines => render_schemes::RenderCommandType::DrawLines,
+        RenderCommand::DrawPoints => render_schemes::RenderCommandType::DrawPoints,
+        RenderCommand::DrawQuads => render_schemes::RenderCommandType::DrawQuads,
     }
 }
 
 fn create_scheme_render_command_data<'a, 'b>(
     mut builder: &'a mut flatbuffers::FlatBufferBuilder<'b>,
     command: &'a RenderCommand,
-) -> flatbuffers::WIPOffset<schemes::RenderCommandData<'b>> {
-    let mut pos2f: Option<&schemes::Pos2f> = None;
-    let mut size2f: Option<&schemes::Size2f> = None;
-    let mut color: Option<&schemes::Color> = None;
+) -> flatbuffers::WIPOffset<render_schemes::RenderCommandData<'b>> {
+    let mut pos2f: Option<&render_schemes::Pos2f> = None;
+    let mut size2f: Option<&render_schemes::Size2f> = None;
+    let mut color: Option<&render_schemes::Color> = None;
 
     let pos2f_data;
     let size2f_data;
@@ -121,15 +123,15 @@ fn create_scheme_render_command_data<'a, 'b>(
 
     match *command {
         RenderCommand::PushColor { r, g, b, a } => {
-            color_data = schemes::Color::new(r, g, b, a);
+            color_data = render_schemes::Color::new(r, g, b, a);
             color = Some(&color_data);
         }
         RenderCommand::PushPos2f { x, y } => {
-            pos2f_data = schemes::Pos2f::new(x, y);
+            pos2f_data = render_schemes::Pos2f::new(x, y);
             pos2f = Some(&pos2f_data);
         }
         RenderCommand::PushSize2f { x, y } => {
-            size2f_data = schemes::Size2f::new(x, y);
+            size2f_data = render_schemes::Size2f::new(x, y);
             size2f = Some(&size2f_data);
         }
         RenderCommand::PushTexture { .. } => {}
@@ -141,21 +143,90 @@ fn create_scheme_render_command_data<'a, 'b>(
         RenderCommand::DrawQuads => {}
     }
 
-    return schemes::RenderCommandData::create(
+    render_schemes::RenderCommandData::create(
         &mut builder,
-        &schemes::RenderCommandDataArgs {
+        &render_schemes::RenderCommandDataArgs {
             color,
             pos2f,
             size2f,
         },
-    );
+    )
 }
 
 pub fn serialize_flatbuffers_exec_commands(
-    _memory: &mut Memory,
-    _commands: &Vec<ExectutionCommand>,
+    memory: &mut Memory,
+    commands: &[ExecutionCommand],
 ) -> RawBuffer {
-    todo!()
+    let mut builder = flatbuffers::FlatBufferBuilder::new_with_capacity(1024);
+    let commands_schemes: Vec<flatbuffers::WIPOffset<execution_schemes::ExecutionCommand>> =
+        commands
+            .iter()
+            .map(|command| {
+                let data = create_scheme_execution_command_data(&mut builder, command);
+                execution_schemes::ExecutionCommand::create(
+                    &mut builder,
+                    &execution_schemes::ExecutionCommandArgs {
+                        type_: create_scheme_execution_command_type(command),
+                        data: Some(data),
+                    },
+                )
+            })
+            .collect();
+
+    let commands_flatbuffers_vec = builder.create_vector(&commands_schemes);
+
+    execution_schemes::ExecutionCommands::create(
+        &mut builder,
+        &execution_schemes::ExecutionCommandsArgs {
+            commands: Some(commands_flatbuffers_vec),
+        },
+    );
+
+    let data = builder.finished_data();
+
+    let start = memory.serialize_buffer.len();
+    let end = start + data.len();
+
+    memory.serialize_buffer.extend(data.iter());
+
+    let data = memory.serialize_buffer[start..end].as_ptr();
+
+    RawBuffer {
+        data,
+        length: end - start,
+    }
+}
+
+fn create_scheme_execution_command_type(
+    command: &ExecutionCommand,
+) -> execution_schemes::ExecutionCommandType {
+    match command {
+        ExecutionCommand::PushPos2f { .. } => execution_schemes::ExecutionCommandType::PushPos2f,
+        ExecutionCommand::UpdateCameraPosition => {
+            execution_schemes::ExecutionCommandType::UpdateCameraPosition
+        }
+    }
+}
+
+fn create_scheme_execution_command_data<'a, 'b>(
+    mut builder: &'a mut flatbuffers::FlatBufferBuilder<'b>,
+    command: &'a ExecutionCommand,
+) -> flatbuffers::WIPOffset<execution_schemes::ExecutionCommandData<'b>> {
+    let mut pos2f: Option<&execution_schemes::Pos2f> = None;
+    let pos2f_data;
+
+    match *command {
+        ExecutionCommand::PushPos2f { x, y } => {
+            pos2f_data = execution_schemes::Pos2f::new(x, y);
+            pos2f = Some(&pos2f_data);
+        },
+        ExecutionCommand::UpdateCameraPosition => {}
+    }
+
+    execution_schemes::ExecutionCommandData::create(
+        &mut builder,
+        &execution_schemes::ExecutionCommandDataArgs { pos2f },
+    )
 }
 
 pub fn deserialize_flatbuffers_request_commands(_commands: RawBuffer) -> Vec<RequestCommand> {

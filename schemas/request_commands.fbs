@@ -1,0 +1,34 @@
+namespace TechPaws.Backend.Schemes;
+
+enum RequestCommandType: byte {
+    SetViewportSize = 0,
+    OnTouchStart = 1,
+    OnTouchEnd = 2,
+    OnTouchMove = 3,
+}
+
+struct Pos2f {
+    x: float;
+    y: float;
+}
+
+struct Size2f {
+    width: float;
+    height: float;
+}
+
+table RequestCommandData {
+    pos2f: Pos2f;
+    size2f: Size2f;
+}
+
+table RequestCommand {
+    type: RequestCommandType;
+    data: RequestCommandData;
+}
+
+table RequestCommands {
+    commands: [RequestCommand];
+}
+
+root_type RequestCommands;
