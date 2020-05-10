@@ -1,5 +1,5 @@
 use crate::render::components::{
-    CameraPos2fListener, GridComponent, RenderCommand, CommandsState, ViewPortSize,
+    CameraPos2fListener, CommandsState, GridComponent, RenderCommand, ViewPortSize,
 };
 use legion::prelude::*;
 

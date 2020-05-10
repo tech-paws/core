@@ -1,6 +1,7 @@
 mod render;
+mod schemas;
+mod serialize;
 
-use std::slice;
 use std::sync::Mutex;
 
 use lazy_static::lazy_static;
@@ -11,8 +12,9 @@ use render::components::*;
 use render::grid_system::grid_system;
 use render::move_camera_system::{move_camera_system, render_touch_system};
 use render::work_area::work_area_system;
+use serialize::*;
 
-struct Memory {
+pub struct Memory {
     serialize_buffer: Vec<u8>,
 }
 
@@ -25,6 +27,7 @@ struct ApplicationState {
 #[repr(C)]
 pub enum SerializeFormat {
     Json = 0,
+    Flatbuffers = 1,
 }
 
 static mut SCHEDULER: Option<Schedule> = None;
@@ -221,7 +224,7 @@ pub struct RawBuffer {
 }
 
 #[no_mangle]
-pub extern "C" fn get_render_commands() -> RawBuffer {
+pub extern "C" fn get_render_commands(format: SerializeFormat) -> RawBuffer {
     match APPLICATION_STATE.lock().unwrap().as_mut() {
         Some(application_state) => {
             let state = application_state
@@ -230,21 +233,15 @@ pub extern "C" fn get_render_commands() -> RawBuffer {
                 .get::<CommandsState>()
                 .unwrap();
 
-            let json = serde_json::to_vec(&state.render_commands).unwrap();
-
-            let start = application_state.memory.serialize_buffer.len();
-            let end = start + json.len();
-
-            application_state
-                .memory
-                .serialize_buffer
-                .extend(json.into_iter());
-
-            let data = application_state.memory.serialize_buffer[start..end].as_ptr();
-
-            RawBuffer {
-                data,
-                length: end - start,
+            match format {
+                SerializeFormat::Json => serialize_json_render_commands(
+                    &mut application_state.memory,
+                    &state.render_commands,
+                ),
+                SerializeFormat::Flatbuffers => serialize_flatbuffers_render_commands(
+                    &mut application_state.memory,
+                    &state.render_commands,
+                ),
             }
         }
         None => panic!(":("),
@@ -252,7 +249,7 @@ pub extern "C" fn get_render_commands() -> RawBuffer {
 }
 
 #[no_mangle]
-pub extern "C" fn get_exec_commands() -> RawBuffer {
+pub extern "C" fn get_exec_commands(format: SerializeFormat) -> RawBuffer {
     match APPLICATION_STATE.lock().unwrap().as_mut() {
         Some(application_state) => {
             let state = application_state
@@ -261,21 +258,15 @@ pub extern "C" fn get_exec_commands() -> RawBuffer {
                 .get::<CommandsState>()
                 .unwrap();
 
-            let json = serde_json::to_vec(&state.exec_commands).unwrap();
-
-            let start = application_state.memory.serialize_buffer.len();
-            let end = start + json.len();
-
-            application_state
-                .memory
-                .serialize_buffer
-                .extend(json.into_iter());
-
-            let data = application_state.memory.serialize_buffer[start..end].as_ptr();
-
-            RawBuffer {
-                data,
-                length: end - start,
+            match format {
+                SerializeFormat::Json => serialize_json_exec_commands(
+                    &mut application_state.memory,
+                    &state.exec_commands,
+                ),
+                SerializeFormat::Flatbuffers => serialize_flatbuffers_exec_commands(
+                    &mut application_state.memory,
+                    &state.exec_commands,
+                ),
             }
         }
         None => panic!(":("),
@@ -283,7 +274,7 @@ pub extern "C" fn get_exec_commands() -> RawBuffer {
 }
 
 #[no_mangle]
-pub extern "C" fn send_request_commands(data: RawBuffer) {
+pub extern "C" fn send_request_commands(format: SerializeFormat, data: RawBuffer) {
     match APPLICATION_STATE.lock().unwrap().as_mut() {
         Some(application_state) => {
             let mut state = application_state
@@ -292,8 +283,10 @@ pub extern "C" fn send_request_commands(data: RawBuffer) {
                 .get_mut::<CommandsState>()
                 .unwrap();
 
-            let bytes = unsafe { slice::from_raw_parts(data.data, data.length) };
-            let requests = serde_json::from_slice::<Vec<RequestCommand>>(bytes).unwrap();
+            let requests = match format {
+                SerializeFormat::Json => deserialize_json_request_commands(data),
+                SerializeFormat::Flatbuffers => deserialize_flatbuffers_request_commands(data),
+            };
 
             state.request_commands.extend(requests.into_iter());
         }
@@ -312,27 +305,26 @@ fn set_view_port_size(application_state: &mut ApplicationState, width: i32, heig
     view_port_size.height = height;
 }
 
-// #[cfg(test)]
-// mod tests {
-//     #[test]
-//     fn it_works() {
-//         crate::init_world();
-//         let json = "[{\"SetViewportSize\": {\"width\": 100, \"height\": 200}}]".as_bytes();
-//         let data = crate::RawBuffer {
-//             data: json.as_ptr(),
-//             length: json.len(),
-//         };
-//         unsafe {
-//             crate::send_request_commands(data);
-//         }
-//         crate::step();
-//         // crate::get_render_commands();
-//         // crate::get_render_commands();
-//         // crate::step();
-//         // let data = crate::get_render_commands();
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_works() {
+        crate::init_world();
+        let json = "[{\"SetViewportSize\": {\"width\": 100, \"height\": 200}}]".as_bytes();
+        let data = crate::RawBuffer {
+            data: json.as_ptr(),
+            length: json.len(),
+        };
+        crate::send_request_commands(crate::SerializeFormat::Json, data);
+        crate::step();
+        let data = crate::get_render_commands(crate::SerializeFormat::Json);
+        println!("{:?}", data);
+        // crate::get_render_commands();
+        // crate::step();
+        // let data = crate::get_render_commands();
 
-//         // dbg!(data);
+        // dbg!(data);
 
-//         assert_eq!(2 + 2, 4);
-//     }
-// }
+        assert_eq!(2 + 2, 4);
+    }
+}
