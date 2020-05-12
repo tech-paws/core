@@ -1,0 +1,3 @@
+[submodule "schemes"]
+	path = schemes
+	url = git@github.com:sysint64/tech.paws-schemes.git

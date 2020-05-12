@@ -1,17 +1,7 @@
 #[allow(dead_code, unused_imports)]
 #[allow(clippy::all)]
-#[path = "../target/schemas/render_commands_generated.rs"]
-mod flatbuffers_render_commands;
-
-#[allow(dead_code, unused_imports)]
-#[allow(clippy::all)]
-#[path = "../target/schemas/request_commands_generated.rs"]
-mod flatbuffers_request_commands;
-
-#[allow(dead_code, unused_imports)]
-#[allow(clippy::all)]
-#[path = "../target/schemas/execution_commands_generated.rs"]
-mod flatbuffers_execution_commands;
+#[path = "../schemes/target/rust/commands_generated.rs"]
+mod flatbuffers_commands;
 
 mod render;
 mod serialize;
