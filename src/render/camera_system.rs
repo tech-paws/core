@@ -1,6 +1,7 @@
-use crate::render::components::{
-    Camera2D, CameraPos2fListener, ExecutionCommand, Pos2f, CommandsState, ViewPortSize,
-};
+use crate::render::components::{Camera2D, Camera2DPositionListener, ViewPortSize};
+use crate::commands::{CommandsState, Vec2f};
+use crate::render::gapi;
+
 use legion::prelude::*;
 
 pub fn camera_system() -> Box<dyn Schedulable> {
@@ -8,21 +9,16 @@ pub fn camera_system() -> Box<dyn Schedulable> {
         .write_resource::<CommandsState>()
         .read_resource::<ViewPortSize>()
         .with_query(<(Read<Camera2D>,)>::query())
-        .with_query(<(Write<CameraPos2fListener>,)>::query())
-        .build(|_, mut world, (render_state, view_port_size), (q1, q2)| {
-            let exec_commands = &mut render_state.exec_commands;
+        .with_query(<(Write<Camera2DPositionListener>,)>::query())
+        .build(|_, mut world, (commands_state, view_port_size), (q1, q2)| {
             // TODO: Remove hardcode - 2
-            let mut pos = vec![Pos2f::default(); 2];
+            let mut pos = vec![Vec2f::zero(); 2];
 
             for (camera,) in q1.iter(&mut world) {
                 pos[camera.tag].x = view_port_size.width as f32 / 2.0 + camera.pos.x;
                 pos[camera.tag].y = view_port_size.height as f32 / 2.0 + camera.pos.y;
 
-                exec_commands.push(ExecutionCommand::PushPos2f {
-                    x: pos[camera.tag].x,
-                    y: pos[camera.tag].y,
-                });
-                exec_commands.push(ExecutionCommand::UpdateCameraPosition);
+                gapi::update_camera_position(commands_state, pos[camera.tag]);
             }
 
             for (mut camera_listener,) in q2.iter(&mut world) {

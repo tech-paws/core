@@ -1,38 +1,31 @@
-use crate::render::components::{
-    CameraPos2fListener, CommandsState, GridComponent, RenderCommand, ViewPortSize,
-};
+use crate::commands::CommandsState;
+use crate::render::components::{Camera2DPositionListener, GridComponent, ViewPortSize};
+use crate::render::gapi;
 use legion::prelude::*;
 
 pub fn grid_system() -> Box<dyn Schedulable> {
     SystemBuilder::new("grid_system")
         .write_resource::<CommandsState>()
         .read_resource::<ViewPortSize>()
-        .with_query(<(Read<GridComponent>, Read<CameraPos2fListener>)>::query())
-        .build(|_, world, (render_state, view_port_size), query| {
-            let render_commands = &mut render_state.render_commands;
-
+        .with_query(<(Read<GridComponent>, Read<Camera2DPositionListener>)>::query())
+        .build(|_, world, (commands_state, view_port_size), query| {
             for (grid, camera) in query.iter(world) {
-                render_commands.push(RenderCommand::PushColorShader);
-                render_commands.push(RenderCommand::PushColor {
-                    r: grid.color.r,
-                    g: grid.color.g,
-                    b: grid.color.b,
-                    a: grid.color.a,
-                });
+                gapi::push_color_shader(commands_state);
+                gapi::push_color(commands_state, grid.color);
+                gapi::set_color_uniform(commands_state);
 
-                render_commands.push(RenderCommand::SetColorUniform);
-                draw_lines(&grid, &view_port_size, &camera, render_commands);
+                push_lines(commands_state, &grid, &view_port_size, &camera);
             }
 
-            render_commands.push(RenderCommand::DrawLines);
+            gapi::draw_lines(commands_state);
         })
 }
 
-fn draw_lines(
+fn push_lines(
+    render_state: &mut CommandsState,
     grid: &GridComponent,
     size: &ViewPortSize,
-    camera: &CameraPos2fListener,
-    render_commands: &mut Vec<RenderCommand>,
+    camera: &Camera2DPositionListener,
 ) {
     let camera_x = camera.pos.x.round() as i32;
     let camera_y = camera.pos.y.round() as i32;
@@ -42,14 +35,8 @@ fn draw_lines(
     let to = -camera_x + size.width;
 
     for i in (from..to).step_by(grid.step as usize) {
-        render_commands.push(RenderCommand::PushPos2f {
-            x: i as f32,
-            y: -camera.pos.y,
-        });
-        render_commands.push(RenderCommand::PushPos2f {
-            x: i as f32,
-            y: size.height as f32 - camera.pos.y,
-        });
+        gapi::push_vec2f_xy(render_state, i as f32, -camera.pos.y);
+        gapi::push_vec2f_xy(render_state, i as f32, size.height as f32 - camera.pos.y);
     }
 
     // Horizontal lines
@@ -57,13 +44,7 @@ fn draw_lines(
     let to = -camera_y + size.height;
 
     for i in (from..to).step_by(grid.step as usize) {
-        render_commands.push(RenderCommand::PushPos2f {
-            x: -camera.pos.x,
-            y: i as f32,
-        });
-        render_commands.push(RenderCommand::PushPos2f {
-            x: size.width as f32 - camera.pos.x,
-            y: i as f32,
-        });
+        gapi::push_vec2f_xy(render_state, -camera.pos.x, i as f32);
+        gapi::push_vec2f_xy(render_state, size.width as f32 - camera.pos.x, i as f32);
     }
 }

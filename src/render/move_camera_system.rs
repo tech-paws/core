@@ -1,7 +1,8 @@
+use crate::commands::{CommandsState, Vec2f};
 use crate::render::components::{
-    Camera2D, CameraMovable2D, CameraPos2fListener, CommandsState, Pos2f, RenderCommand, Size2f,
-    Touch, TouchState, ViewPortSize,
+    Camera2D, CameraMovable2D, Camera2DPositionListener, Touch, TouchState, ViewPortSize,
 };
+use crate::render::gapi;
 use legion::prelude::*;
 
 pub fn move_camera_system() -> Box<dyn Schedulable> {
@@ -30,71 +31,29 @@ pub fn render_touch_system() -> Box<dyn Schedulable> {
     SystemBuilder::new("render_touch_system")
         .write_resource::<CommandsState>()
         .read_resource::<ViewPortSize>()
-        .with_query(<(Read<TouchState>, Read<CameraPos2fListener>)>::query())
-        .build(|_, mut world, (render_state, view_port_size), query| {
-            let render_commands = &mut render_state.render_commands;
-
-            render_commands.push(RenderCommand::PushColorShader);
-            render_commands.push(RenderCommand::PushColor {
-                r: 1.0,
-                g: 0.0,
-                b: 0.0,
-                a: 1.0,
-            });
-
-            render_commands.push(RenderCommand::SetColorUniform);
+        .with_query(<(Read<TouchState>, Read<Camera2DPositionListener>)>::query())
+        .build(|_, mut world, (commands_state, view_port_size), query| {
+            gapi::push_color_shader(commands_state);
+            gapi::push_color_rgb(commands_state, 1.0, 0.0, 0.0);
+            gapi::set_color_uniform(commands_state);
 
             for (touch, camera_listener) in query.iter(&mut world) {
                 if touch.touch == Touch::None || touch.touch == Touch::End {
                     break;
                 }
 
-                let size = Size2f {
-                    width: 32.0,
-                    height: 32.0,
-                };
-                let pos = Pos2f {
+                let pos = Vec2f {
                     x: -camera_listener.pos.x - 16.0 + touch.touch_current.x,
                     y: view_port_size.height as f32
                         - camera_listener.pos.y
                         - 16.0
                         - touch.touch_current.y,
                 };
-                render_quad_lines(pos, size, render_commands);
+                let size = Vec2f { x: 32.0, y: 32.0 };
+
+                gapi::push_quad_lines(commands_state, pos, size);
             }
 
-            render_commands.push(RenderCommand::DrawLines);
+            gapi::draw_lines(commands_state);
         })
-}
-
-pub fn render_quad_lines(pos: Pos2f, size: Size2f, render_commands: &mut Vec<RenderCommand>) {
-    render_commands.push(RenderCommand::PushPos2f { x: pos.x, y: pos.y });
-    render_commands.push(RenderCommand::PushPos2f {
-        x: pos.x + size.width,
-        y: pos.y,
-    });
-
-    render_commands.push(RenderCommand::PushPos2f {
-        x: pos.x + size.width,
-        y: pos.y,
-    });
-    render_commands.push(RenderCommand::PushPos2f {
-        x: pos.x + size.width,
-        y: pos.y + size.height,
-    });
-
-    render_commands.push(RenderCommand::PushPos2f {
-        x: pos.x + size.width,
-        y: pos.y + size.height,
-    });
-    render_commands.push(RenderCommand::PushPos2f {
-        x: pos.x,
-        y: pos.y + size.height,
-    });
-
-    render_commands.push(RenderCommand::PushPos2f {
-        x: pos.x,
-        y: pos.y + size.height,
-    });
-    render_commands.push(RenderCommand::PushPos2f { x: pos.x, y: pos.y });
 }
