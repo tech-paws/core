@@ -4,7 +4,9 @@
 mod flatbuffers_commands;
 
 pub mod commands;
-pub mod render;
+pub mod systems;
+pub mod components;
+pub mod gapi;
 
 mod serialize;
 
@@ -17,11 +19,11 @@ use lazy_static::lazy_static;
 use bumpalo::Bump;
 use commands::*;
 use legion::prelude::*;
-use render::camera_system::camera_system;
-use render::components::*;
-use render::grid_system::grid_system;
-use render::move_camera_system::{move_camera_system, render_touch_system};
-use render::work_area::work_area_system;
+use systems::camera::camera_system;
+use components::*;
+use systems::grid::grid_system;
+use systems::move_camera::{move_camera_system, render_touch_system};
+use systems::work_area::work_area_system;
 use serialize::*;
 
 #[derive(Default)]

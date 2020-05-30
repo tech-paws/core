@@ -3,8 +3,9 @@ extern crate flatbuffers;
 use std::slice;
 
 use crate::commands::{ExecutionCommand, RenderCommand, RequestCommand};
-use crate::flatbuffers_commands::tech_paws::schemes;
 use crate::{Memory, RawBuffer};
+
+// use crate::flatbuffers_commands::tech_paws::schemes;
 
 pub fn serialize_json_render_commands(
     memory: &mut Memory,

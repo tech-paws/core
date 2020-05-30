@@ -39,15 +39,6 @@ pub struct Camera2DPositionListener {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Actions;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct OnCameraTouchStart;
-
-#[derive(Clone, Copy, Debug)]
-pub struct OnCameraTouchMove;
-
-#[derive(Clone, Copy, Debug)]
-pub struct OnCameraTouchEnd;
-
 impl Camera2DPositionListener {
     pub fn new(tag: usize) -> Camera2DPositionListener {
         Camera2DPositionListener {
