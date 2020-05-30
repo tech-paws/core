@@ -10,7 +10,7 @@ mod serialize;
 
 use std::os::raw::c_int;
 use std::slice;
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 
 use lazy_static::lazy_static;
 
@@ -61,6 +61,8 @@ lazy_static! {
 
 #[no_mangle]
 pub extern "C" fn init_world() {
+    env_logger::init();
+
     let universe = Universe::new();
     let mut world = universe.create_world();
 
@@ -124,23 +126,37 @@ pub extern "C" fn init_world() {
         memory,
     };
 
-    APPLICATION_STATE.lock().unwrap().replace(application_state);
+    APPLICATION_STATE
+        .lock()
+        .expect("failed to get application state")
+        .replace(application_state);
+}
+
+fn get_application_state<'a>() -> MutexGuard<'a, Option<ApplicationState>> {
+    APPLICATION_STATE
+        .lock()
+        .expect("failed to get application state")
 }
 
 #[no_mangle]
 pub extern "C" fn step() {
-    match APPLICATION_STATE.lock().unwrap().as_mut() {
+    match get_application_state().as_mut() {
         Some(state) => {
             handle_request_commands(state);
             flush(state);
 
             unsafe {
-                SCHEDULER.as_mut().unwrap().execute(&mut state.world);
+                SCHEDULER
+                    .as_mut()
+                    .expect("failed to get scheduler")
+                    .execute(&mut state.world);
             }
 
             delete_action_entities(&mut state.world);
         }
-        None => panic!(":("),
+        None => {
+            panic!("failed to get application state");
+        }
     }
 }
 
@@ -160,7 +176,7 @@ fn handle_request_commands(application_state: &mut ApplicationState) {
         .world
         .resources
         .get::<CommandsState>()
-        .unwrap()
+        .expect("failed to get commands state")
         .request_commands
         .to_vec();
 
@@ -193,7 +209,7 @@ fn handle_request_command(application_state: &mut ApplicationState, command: &Re
             if let Some(vec2i) = memory.vec2i_data.pop() {
                 set_view_port_size(world, vec2i.x, vec2i.y);
             } else {
-                todo!("warning log");
+                log::warn!("data have not been provided to SetViewportSize request command");
             }
 
             memory.clear();
@@ -211,7 +227,7 @@ fn handle_request_command(application_state: &mut ApplicationState, command: &Re
                     touch_state.touch_current = vec2f;
                 }
             } else {
-                todo!("warning log");
+                log::warn!("data have not been provided to OnTouchStart request command");
             }
 
             memory.clear();
@@ -230,7 +246,7 @@ fn handle_request_command(application_state: &mut ApplicationState, command: &Re
                     }
                 }
             } else {
-                todo!("warning log");
+                log::warn!("data have not been provided to OnTouchEnd request command");
             }
 
             memory.clear();
@@ -249,7 +265,7 @@ fn handle_request_command(application_state: &mut ApplicationState, command: &Re
                     }
                 }
             } else {
-                todo!("warning log");
+                log::warn!("data have not been provided to OnTouchMove request command");
             }
 
             memory.clear();
@@ -262,7 +278,7 @@ fn flush(application_state: &mut ApplicationState) {
         .world
         .resources
         .get_mut::<CommandsState>()
-        .unwrap();
+        .expect("failed to get commands state");
 
     application_state.memory.serialize_buffer.reset();
     application_state.memory.commands_data.clear();
@@ -293,68 +309,74 @@ pub struct ExecutionCommands {
 
 #[no_mangle]
 pub extern "C" fn c_get_render_commands() -> RenderCommands {
-    match APPLICATION_STATE.lock().unwrap().as_mut() {
+    match get_application_state().as_mut() {
         Some(application_state) => {
             let state = application_state
                 .world
                 .resources
                 .get::<CommandsState>()
-                .unwrap();
+                .expect("failed to get commands state");
 
             RenderCommands {
                 items: state.render_commands.as_ptr(),
                 length: state.render_commands.len() as c_int,
             }
         }
-        None => panic!(":("),
+        None => {
+            panic!("failed to get application state");
+        }
     }
 }
 
 #[no_mangle]
 pub extern "C" fn c_get_exec_commands() -> ExecutionCommands {
-    match APPLICATION_STATE.lock().unwrap().as_mut() {
+    match get_application_state().as_mut() {
         Some(application_state) => {
             let state = application_state
                 .world
                 .resources
                 .get::<CommandsState>()
-                .unwrap();
+                .expect("failed to get commands state");
 
             ExecutionCommands {
                 items: state.exec_commands.as_ptr(),
                 length: state.exec_commands.len() as c_int,
             }
         }
-        None => panic!(":("),
+        None => {
+            panic!("failed to get application state");
+        }
     }
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn c_send_request_commands(data: *const RequestCommand, length: c_int) {
-    match APPLICATION_STATE.lock().unwrap().as_mut() {
+    match get_application_state().as_mut() {
         Some(application_state) => {
             let mut state = application_state
                 .world
                 .resources
                 .get_mut::<CommandsState>()
-                .unwrap();
+                .expect("failed to get commands state");
 
             let requests = slice::from_raw_parts(data, length as usize);
             state.request_commands.extend_from_slice(requests);
         }
-        None => panic!(":("),
+        None => {
+            panic!("failed to get application state");
+        }
     }
 }
 
 #[no_mangle]
 pub extern "C" fn get_render_commands(format: SerializeFormat) -> RawBuffer {
-    match APPLICATION_STATE.lock().unwrap().as_mut() {
+    match get_application_state().as_mut() {
         Some(application_state) => {
             let state = application_state
                 .world
                 .resources
                 .get::<CommandsState>()
-                .unwrap();
+                .expect("failed to get commands state");
 
             match format {
                 SerializeFormat::Json => serialize_json_render_commands(
@@ -363,19 +385,21 @@ pub extern "C" fn get_render_commands(format: SerializeFormat) -> RawBuffer {
                 ),
             }
         }
-        None => panic!(":("),
+        None => {
+            panic!("failed to get application state");
+        }
     }
 }
 
 #[no_mangle]
 pub extern "C" fn get_exec_commands(format: SerializeFormat) -> RawBuffer {
-    match APPLICATION_STATE.lock().unwrap().as_mut() {
+    match get_application_state().as_mut() {
         Some(application_state) => {
             let state = application_state
                 .world
                 .resources
                 .get::<CommandsState>()
-                .unwrap();
+                .expect("failed to get commands state");
 
             match format {
                 SerializeFormat::Json => serialize_json_exec_commands(
@@ -384,32 +408,46 @@ pub extern "C" fn get_exec_commands(format: SerializeFormat) -> RawBuffer {
                 ),
             }
         }
-        None => panic!(":("),
+        None => {
+            panic!("failed to get application state");
+        }
     }
 }
 
 #[no_mangle]
 pub extern "C" fn send_request_commands(format: SerializeFormat, data: RawBuffer) {
-    match APPLICATION_STATE.lock().unwrap().as_mut() {
+    match get_application_state().as_mut() {
         Some(application_state) => {
             let mut state = application_state
                 .world
                 .resources
                 .get_mut::<CommandsState>()
-                .unwrap();
+                .expect("failed to get application state");
 
             let requests = match format {
                 SerializeFormat::Json => deserialize_json_request_commands(data),
             };
 
-            state.request_commands.extend(requests.into_iter());
+            match requests {
+                Ok(data) => {
+                    state.request_commands.extend(data.into_iter());
+                }
+                Err(err) => {
+                    log::warn!("failed to deserialize request commands: {}", err);
+                }
+            }
         }
-        None => panic!(":("),
+        None => {
+            panic!("failed to get application state");
+        }
     }
 }
 
 fn set_view_port_size(world: &mut World, width: i32, height: i32) {
-    let mut view_port_size = world.resources.get_mut::<ViewPortSize>().unwrap();
+    let mut view_port_size = world
+        .resources
+        .get_mut::<ViewPortSize>()
+        .expect("falied to get viewport");
 
     view_port_size.width = width;
     view_port_size.height = height;
@@ -420,17 +458,19 @@ mod tests {
     #[test]
     fn it_works() {
         crate::init_world();
-        let json = "[{\"SetViewportSize\": {\"width\": 100, \"height\": 200}}]".as_bytes();
-        // let data = crate::RawBuffer {
-        // data: json.as_ptr(),
-        // length: json.len(),
-        // };
-        // crate::send_request_commands(crate::SerializeFormat::Json, data);
+        let json = "[{\"SetViewportSize\": {\"width: 100, \"height\": 200}}]".as_bytes();
+        let data = crate::RawBuffer {
+            data: json.as_ptr(),
+            length: json.len(),
+        };
+        crate::send_request_commands(crate::SerializeFormat::Json, data);
         // crate::step();
         // let mut commands_state = crate::commands::CommandsState::default();
         // crate::render::gapi::push_color_shader(&mut commands_state);
         let data = crate::get_render_commands(crate::SerializeFormat::Json);
         println!("{:?}", data);
+        log::error!("Commencing yak shaving");
+        panic!(":(");
         // crate::get_render_commands();
         // crate::step();
         // let data = crate::get_render_commands();

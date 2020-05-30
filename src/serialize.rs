@@ -2,15 +2,15 @@ extern crate flatbuffers;
 
 use std::slice;
 
-use crate::flatbuffers_commands::tech_paws::schemes;
 use crate::commands::{ExecutionCommand, RenderCommand, RequestCommand};
+use crate::flatbuffers_commands::tech_paws::schemes;
 use crate::{Memory, RawBuffer};
 
 pub fn serialize_json_render_commands(
     memory: &mut Memory,
     commands: &[RenderCommand],
 ) -> RawBuffer {
-    let json = serde_json::to_vec(commands).unwrap();
+    let json = serde_json::to_vec(commands).expect("failed to serialize render commands");
     let data = memory.serialize_buffer.alloc_slice_copy(json.as_slice());
 
     RawBuffer {
@@ -23,7 +23,7 @@ pub fn serialize_json_exec_commands(
     memory: &mut Memory,
     commands: &[ExecutionCommand],
 ) -> RawBuffer {
-    let json = serde_json::to_vec(commands).unwrap();
+    let json = serde_json::to_vec(commands).expect("failed to serialize execution commands");
     let data = memory.serialize_buffer.alloc_slice_copy(json.as_slice());
 
     RawBuffer {
@@ -32,11 +32,14 @@ pub fn serialize_json_exec_commands(
     }
 }
 
-pub fn deserialize_json_request_commands(data: RawBuffer) -> Vec<RequestCommand> {
+pub fn deserialize_json_request_commands(
+    data: RawBuffer,
+) -> serde_json::Result<Vec<RequestCommand>> {
     let bytes = unsafe { slice::from_raw_parts(data.data, data.length) };
-    serde_json::from_slice::<Vec<RequestCommand>>(bytes).unwrap()
+    serde_json::from_slice::<Vec<RequestCommand>>(bytes)
 }
 
+// TODO:
 // pub fn serialize_flatbuffers_render_commands(
 //     memory: &mut Memory,
 //     commands: &[RenderCommand],
