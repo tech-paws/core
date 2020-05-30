@@ -3,12 +3,13 @@ extern crate flatbuffers;
 use std::slice;
 
 use crate::commands::{ExecutionCommand, RenderCommand, RequestCommand};
-use crate::{Memory, RawBuffer};
+use crate::RawBuffer;
+use crate::memory::MemoryState;
 
 // use crate::flatbuffers_commands::tech_paws::schemes;
 
 pub fn serialize_json_render_commands(
-    memory: &mut Memory,
+    memory: &mut MemoryState,
     commands: &[RenderCommand],
 ) -> RawBuffer {
     let json = serde_json::to_vec(commands).expect("failed to serialize render commands");
@@ -21,7 +22,7 @@ pub fn serialize_json_render_commands(
 }
 
 pub fn serialize_json_exec_commands(
-    memory: &mut Memory,
+    memory: &mut MemoryState,
     commands: &[ExecutionCommand],
 ) -> RawBuffer {
     let json = serde_json::to_vec(commands).expect("failed to serialize execution commands");

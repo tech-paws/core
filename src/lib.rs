@@ -4,9 +4,10 @@
 mod flatbuffers_commands;
 
 pub mod commands;
-pub mod systems;
 pub mod components;
 pub mod gapi;
+pub mod memory;
+pub mod systems;
 
 mod serialize;
 
@@ -16,38 +17,18 @@ use std::sync::{Mutex, MutexGuard};
 
 use lazy_static::lazy_static;
 
-use bumpalo::Bump;
 use commands::*;
-use legion::prelude::*;
-use systems::camera::camera_system;
 use components::*;
+use legion::prelude::*;
+use serialize::*;
+use systems::camera::camera_system;
 use systems::grid::grid_system;
 use systems::move_camera::{move_camera_system, render_touch_system};
 use systems::work_area::work_area_system;
-use serialize::*;
-
-#[derive(Default)]
-pub struct CommandsDataMemory {
-    vec2f_data: Vec<Vec2f>,
-    vec2i_data: Vec<Vec2i>,
-}
-
-impl CommandsDataMemory {
-    pub fn clear(&mut self) {
-        self.vec2f_data.clear();
-        self.vec2i_data.clear();
-    }
-}
-
-pub struct Memory {
-    serialize_buffer: Bump,
-    commands_data: CommandsDataMemory,
-}
 
 struct ApplicationState {
     _universe: Universe,
     world: World,
-    memory: Memory,
 }
 
 #[repr(C)]
@@ -104,11 +85,6 @@ pub extern "C" fn init_world() {
         )],
     );
 
-    let memory = Memory {
-        serialize_buffer: Bump::new(),
-        commands_data: CommandsDataMemory::default(),
-    };
-
     unsafe {
         SCHEDULER = Some(
             Schedule::builder()
@@ -125,7 +101,6 @@ pub extern "C" fn init_world() {
     let application_state = ApplicationState {
         _universe: universe,
         world,
-        memory,
     };
 
     APPLICATION_STATE
@@ -189,7 +164,9 @@ fn handle_request_commands(application_state: &mut ApplicationState) {
 
 fn handle_request_command(application_state: &mut ApplicationState, command: &RequestCommand) {
     let world = &mut application_state.world;
-    let memory = &mut application_state.memory.commands_data;
+
+    // TODO:
+    let memory = &mut memory::get_memory_state().commands_data;
 
     match command {
         RequestCommand {
@@ -282,8 +259,7 @@ fn flush(application_state: &mut ApplicationState) {
         .get_mut::<CommandsState>()
         .expect("failed to get commands state");
 
-    application_state.memory.serialize_buffer.reset();
-    application_state.memory.commands_data.clear();
+    memory::flush();
 
     state.render_commands.clear();
     state.exec_commands.clear();
@@ -380,11 +356,12 @@ pub extern "C" fn get_render_commands(format: SerializeFormat) -> RawBuffer {
                 .get::<CommandsState>()
                 .expect("failed to get commands state");
 
+            let memory = &mut memory::get_memory_state();
+
             match format {
-                SerializeFormat::Json => serialize_json_render_commands(
-                    &mut application_state.memory,
-                    &state.render_commands,
-                ),
+                SerializeFormat::Json => {
+                    serialize_json_render_commands(memory, &state.render_commands)
+                }
             }
         }
         None => {
@@ -403,11 +380,10 @@ pub extern "C" fn get_exec_commands(format: SerializeFormat) -> RawBuffer {
                 .get::<CommandsState>()
                 .expect("failed to get commands state");
 
+            let memory = &mut memory::get_memory_state();
+
             match format {
-                SerializeFormat::Json => serialize_json_exec_commands(
-                    &mut application_state.memory,
-                    &state.exec_commands,
-                ),
+                SerializeFormat::Json => serialize_json_exec_commands(memory, &state.exec_commands),
             }
         }
         None => {
