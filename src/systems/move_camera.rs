@@ -1,14 +1,18 @@
 use crate::commands::{CommandsState, Vec2f};
 use crate::components::{
-    Camera2D, CameraMovable2D, Camera2DPositionListener, Touch, TouchState, ViewPortSize,
+    Camera2D, Camera2DPositionListener, CameraMovable2D, Touch, TouchState, ViewPortSize,
 };
+use crate::debug_services;
 use crate::gapi;
+
 use legion::prelude::*;
 
 pub fn move_camera_system() -> Box<dyn Schedulable> {
     SystemBuilder::new("move_camera_system")
         .with_query(<(Write<Camera2D>, Write<CameraMovable2D>, Read<TouchState>)>::query())
         .build(|_, mut world, _, query| {
+            debug_services::timed_block!("move_camera_system");
+
             for (mut camera, mut camera_movable, touch_state) in query.iter(&mut world) {
                 if touch_state.touch != Touch::Move {
                     camera_movable.last_pos = camera.pos;

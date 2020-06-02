@@ -1,5 +1,6 @@
 use crate::commands::{CommandsState, Vec2f};
 use crate::components::WorkAreaComponent;
+use crate::debug_services;
 use crate::gapi;
 
 use legion::prelude::*;
@@ -9,6 +10,8 @@ pub fn work_area_system() -> Box<dyn Schedulable> {
         .write_resource::<CommandsState>()
         .with_query(<(Read<WorkAreaComponent>,)>::query())
         .build(|_, mut world, commands_state, query| {
+            debug_services::timed_block!("work_area_system");
+
             for (work_area,) in query.iter(&mut world) {
                 gapi::push_color_shader(commands_state);
                 gapi::push_color(commands_state, work_area.color);

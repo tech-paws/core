@@ -1,5 +1,6 @@
 use crate::commands::{CommandsState, Vec2f};
 use crate::components::{Camera2D, Camera2DPositionListener, ViewPortSize};
+use crate::debug_services;
 use crate::gapi;
 use crate::memory;
 
@@ -12,6 +13,8 @@ pub fn camera_system() -> Box<dyn Schedulable> {
         .with_query(<(Read<Camera2D>,)>::query())
         .with_query(<(Write<Camera2DPositionListener>,)>::query())
         .build(|_, mut world, (commands_state, view_port_size), (q1, q2)| {
+            debug_services::timed_block!("camera_system");
+
             let memory_state = &mut memory::get_memory_state();
             let mut pos = memory::frame_alloc_vec::<Vec2f>(memory_state);
 

@@ -8,6 +8,7 @@ pub mod components;
 pub mod gapi;
 pub mod memory;
 pub mod systems;
+pub mod debug_services;
 
 mod serialize;
 
@@ -130,6 +131,7 @@ pub extern "C" fn step() {
             }
 
             delete_action_entities(&mut state.world);
+            debug_services::step();
         }
         None => {
             panic!("failed to get application state");

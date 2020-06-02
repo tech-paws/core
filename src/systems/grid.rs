@@ -1,6 +1,8 @@
 use crate::commands::CommandsState;
 use crate::components::{Camera2DPositionListener, GridComponent, ViewPortSize};
+use crate::debug_services;
 use crate::gapi;
+
 use legion::prelude::*;
 
 pub fn grid_system() -> Box<dyn Schedulable> {
@@ -9,6 +11,8 @@ pub fn grid_system() -> Box<dyn Schedulable> {
         .read_resource::<ViewPortSize>()
         .with_query(<(Read<GridComponent>, Read<Camera2DPositionListener>)>::query())
         .build(|_, world, (commands_state, view_port_size), query| {
+            debug_services::timed_block!("grid_system");
+
             for (grid, camera) in query.iter(world) {
                 gapi::push_color_shader(commands_state);
                 gapi::push_color(commands_state, grid.color);
