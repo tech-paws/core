@@ -1,4 +1,5 @@
 use crate::commands::*;
+use crate::memory;
 
 pub fn push_color_shader(commands_state: &mut CommandsState) {
     push_render_command(commands_state, RenderCommandType::PushColorShader);
@@ -10,6 +11,22 @@ pub fn push_color(commands_state: &mut CommandsState, color: Color) {
         RenderCommandType::PushColor,
         CommandData::color(color),
     );
+}
+
+pub fn push_string(commands_state: &mut CommandsState, str: &str) {
+    let memory_state = memory::get_memory_state();
+    let data = memory_state.frame_memory.alloc_slice_copy(str.as_bytes());
+
+    push_render_command_data(
+        commands_state,
+        RenderCommandType::PushString,
+        CommandData::string_bytes(data),
+    );
+}
+
+pub fn push_string_xy(commands_state: &mut CommandsState, str: &str, x: f32, y: f32) {
+    push_vec2f_xy(commands_state, x, y);
+    push_string(commands_state, str);
 }
 
 pub fn push_color_rgb(commands_state: &mut CommandsState, r: f32, g: f32, b: f32) {
@@ -26,6 +43,10 @@ pub fn set_color_uniform(commands_state: &mut CommandsState) {
 
 pub fn draw_lines(commands_state: &mut CommandsState) {
     push_render_command(commands_state, RenderCommandType::DrawLines);
+}
+
+pub fn draw_text(commands_state: &mut CommandsState) {
+    push_render_command(commands_state, RenderCommandType::DrawText);
 }
 
 pub fn push_vec2f(commands_state: &mut CommandsState, vec2f: Vec2f) {

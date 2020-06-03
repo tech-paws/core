@@ -132,7 +132,14 @@ pub extern "C" fn step() {
             }
 
             delete_action_entities(&mut state.world);
-            debug_services::step();
+
+            let commands_state = &mut state
+                .world
+                .resources
+                .get_mut::<CommandsState>()
+                .expect("failed to get commands state");
+
+            debug_services::step(commands_state);
         }
         None => {
             panic!("failed to get application state");
@@ -281,6 +288,13 @@ impl RawBuffer {
         RawBuffer {
             data: str.as_ptr(),
             length: str.len(),
+        }
+    }
+
+    pub fn from_bytes(raw: &[u8]) -> RawBuffer {
+        RawBuffer {
+            data: raw.as_ptr(),
+            length: raw.len(),
         }
     }
 

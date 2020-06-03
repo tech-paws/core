@@ -43,7 +43,7 @@ lazy_static! {
     static ref MEMORY_STATE: Mutex<MemoryState> = Mutex::new(MemoryState::default());
 }
 
-// TODO: thread local
+// TODO: consider thread local
 pub fn get_memory_state<'a>() -> MutexGuard<'a, MemoryState> {
     MEMORY_STATE.lock().expect("failed to get memory state")
 }

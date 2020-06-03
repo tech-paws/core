@@ -100,9 +100,18 @@ impl CommandData {
             string: RawBuffer::from_string(data),
         }
     }
+
+    pub fn string_bytes(data: &[u8]) -> CommandData {
+        CommandData {
+            vec2f: Vec2f::default(),
+            vec2i: Vec2i::default(),
+            color: Color::default(),
+            string: RawBuffer::from_bytes(data),
+        }
+    }
 }
 
-// last: 6
+// last: 8
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum RenderCommandType {
@@ -110,9 +119,11 @@ pub enum RenderCommandType {
     PushVec2f = 1,
     SetColorUniform = 2,
     PushColorShader = 3,
+    PushString = 8,
     DrawLines = 4,
     DrawPoints = 5,
     DrawQuads = 6,
+    DrawText = 7,
 }
 
 // last: 5

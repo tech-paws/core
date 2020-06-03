@@ -1,8 +1,12 @@
 use lazy_static::lazy_static;
 
+use std::format;
 use std::sync::{Mutex, MutexGuard};
 use std::thread;
 use std::time::{Duration, Instant};
+
+use crate::commands::CommandsState;
+use crate::gapi;
 
 lazy_static! {
     static ref DEBUG_STATE: Mutex<DebugState> = Mutex::new(DebugState::default());
@@ -41,6 +45,7 @@ pub struct CycleDebugRecord {
 }
 
 pub struct TimedBlock {
+    pub thread_id: thread::ThreadId,
     pub name: &'static str,
     pub file_name: &'static str,
     pub line: u32,
@@ -53,6 +58,7 @@ impl TimedBlock {
             name,
             file_name,
             line,
+            thread_id: thread::current().id(),
             timer: Instant::now(),
         }
     }
@@ -69,7 +75,11 @@ impl Drop for TimedBlock {
         let mut modify_idx: usize = 0;
 
         for (i, c) in debug_state.cycles.iter().enumerate() {
-            if c.name == self.name && c.file_name == self.file_name && c.line == self.line {
+            if c.name == self.name
+                && c.file_name == self.file_name
+                && c.line == self.line
+                && c.thread_id == self.thread_id
+            {
                 hits += c.hits;
                 elapsed += c.elapsed;
                 to_modify = true;
@@ -99,10 +109,24 @@ impl Drop for TimedBlock {
     }
 }
 
-pub fn step() {
+pub fn step(commands_state: &mut CommandsState) {
     let debug_state: &mut MutexGuard<DebugState> =
         &mut DEBUG_STATE.lock().expect("failed to get debug state");
 
-    dbg!(&debug_state);
+    let mut offset_y: f32 = 10.0;
+    let offset_x: f32 = 10.0;
+
+    for cycle in debug_state.cycles.iter() {
+        let text = format!(
+            "{:?} | {} {}:{} {:?}",
+            cycle.thread_id, cycle.name, cycle.file_name, cycle.line, cycle.elapsed
+        );
+        gapi::push_string_xy(commands_state, &text, offset_x, offset_y);
+        // println!("{}", text);
+        offset_y += 20.0;
+    }
+
+    gapi::draw_text(commands_state);
+
     debug_state.cycles.clear();
 }
