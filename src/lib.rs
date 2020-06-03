@@ -277,21 +277,14 @@ pub struct RawBuffer {
 }
 
 impl RawBuffer {
-    pub fn from_string(str: &String) -> RawBuffer {
+    pub fn from_string(str: &str) -> RawBuffer {
         RawBuffer {
             data: str.as_ptr(),
             length: str.len(),
         }
     }
 
-    pub fn from_str_slice(str: &str) -> RawBuffer {
-        RawBuffer {
-            data: str.as_ptr(),
-            length: str.len(),
-        }
-    }
-
-    pub fn to_string(&self) -> String {
+    pub fn data_to_string(&self) -> String {
         let data = unsafe { slice::from_raw_parts(self.data, self.length) };
         // TODO: Handle error
         let utf8_str = str::from_utf8(data).unwrap();
@@ -377,8 +370,11 @@ pub extern "C" fn c_get_exec_commands() -> ExecutionCommands {
     }
 }
 
+/// # Safety
+///
+/// TODO: Doc
 #[no_mangle]
-pub extern "C" fn c_send_request_commands(data: *const RequestCommand, length: c_int) {
+pub unsafe extern "C" fn c_send_request_commands(data: *const RequestCommand, length: c_int) {
     match get_application_state().as_mut() {
         Some(application_state) => {
             let mut state = application_state
@@ -387,7 +383,7 @@ pub extern "C" fn c_send_request_commands(data: *const RequestCommand, length: c
                 .get_mut::<CommandsState>()
                 .expect("failed to get commands state");
 
-            let requests = unsafe { slice::from_raw_parts(data, length as usize) };
+            let requests = slice::from_raw_parts(data, length as usize);
             state.request_commands.extend_from_slice(requests);
         }
         None => {

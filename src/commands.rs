@@ -92,21 +92,12 @@ impl CommandData {
         }
     }
 
-    pub fn string(data: &String) -> CommandData {
+    pub fn string(data: &str) -> CommandData {
         CommandData {
             vec2f: Vec2f::default(),
             vec2i: Vec2i::default(),
             color: Color::default(),
             string: RawBuffer::from_string(data),
-        }
-    }
-
-    pub fn string_slice(data: &str) -> CommandData {
-        CommandData {
-            vec2f: Vec2f::default(),
-            vec2i: Vec2i::default(),
-            color: Color::default(),
-            string: RawBuffer::from_str_slice(data),
         }
     }
 }

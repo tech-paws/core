@@ -22,15 +22,17 @@ pub struct MemoryState {
     pub commands_data: CommandsDataMemory,
 }
 
-impl MemoryState {
-    pub fn new() -> MemoryState {
+impl Default for MemoryState {
+    fn default() -> MemoryState {
         MemoryState {
             serialize_buffer: Bump::new(),
             frame_memory: Bump::new(),
             commands_data: CommandsDataMemory::default(),
         }
     }
+}
 
+impl MemoryState {
     pub fn flush(&mut self) {
         self.serialize_buffer.reset();
         self.commands_data.clear();
@@ -38,7 +40,7 @@ impl MemoryState {
 }
 
 lazy_static! {
-    static ref MEMORY_STATE: Mutex<MemoryState> = Mutex::new(MemoryState::new());
+    static ref MEMORY_STATE: Mutex<MemoryState> = Mutex::new(MemoryState::default());
 }
 
 // TODO: thread local
@@ -52,6 +54,6 @@ pub fn flush() {
     memory.commands_data.clear();
 }
 
-pub fn frame_alloc_vec<'a, T>(memory: &'a mut MemoryState) -> bumpalo::collections::Vec<'a, T> {
+pub fn frame_alloc_vec<T>(memory: &mut MemoryState) -> bumpalo::collections::Vec<'_, T> {
     bumpalo::collections::Vec::<T>::new_in(&memory.frame_memory)
 }
