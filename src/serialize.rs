@@ -1,6 +1,6 @@
 extern crate flatbuffers;
 
-use std::slice;
+// use std::slice;
 
 use crate::commands::{ExecutionCommand, RenderCommand, RequestCommand};
 use crate::RawBuffer;
@@ -9,36 +9,39 @@ use crate::memory::MemoryState;
 // use crate::flatbuffers_commands::tech_paws::schemes;
 
 pub fn serialize_json_render_commands(
-    memory: &mut MemoryState,
-    commands: &[RenderCommand],
+    _memory: &mut MemoryState,
+    _commands: &[RenderCommand],
 ) -> RawBuffer {
-    let json = serde_json::to_vec(commands).expect("failed to serialize render commands");
-    let data = memory.serialize_buffer.alloc_slice_copy(json.as_slice());
+    todo!();
+    // let json = serde_json::to_vec(commands).expect("failed to serialize render commands");
+    // let data = memory.serialize_buffer.alloc_slice_copy(json.as_slice());
 
-    RawBuffer {
-        data: data.as_ptr(),
-        length: json.len(),
-    }
+    // RawBuffer {
+    //     data: data.as_ptr(),
+    //     length: json.len(),
+    // }
 }
 
 pub fn serialize_json_exec_commands(
-    memory: &mut MemoryState,
-    commands: &[ExecutionCommand],
+    _memory: &mut MemoryState,
+    _commands: &[ExecutionCommand],
 ) -> RawBuffer {
-    let json = serde_json::to_vec(commands).expect("failed to serialize execution commands");
-    let data = memory.serialize_buffer.alloc_slice_copy(json.as_slice());
+    todo!();
+    // let json = serde_json::to_vec(commands).expect("failed to serialize execution commands");
+    // let data = memory.serialize_buffer.alloc_slice_copy(json.as_slice());
 
-    RawBuffer {
-        data: data.as_ptr(),
-        length: data.len(),
-    }
+    // RawBuffer {
+    //     data: data.as_ptr(),
+    //     length: data.len(),
+    // }
 }
 
 pub fn deserialize_json_request_commands(
-    data: RawBuffer,
+    _data: RawBuffer,
 ) -> serde_json::Result<Vec<RequestCommand>> {
-    let bytes = unsafe { slice::from_raw_parts(data.data, data.length) };
-    serde_json::from_slice::<Vec<RequestCommand>>(bytes)
+    todo!();
+    // let bytes = unsafe { slice::from_raw_parts(data.data, data.length) };
+    // serde_json::from_slice::<Vec<RequestCommand>>(bytes)
 }
 
 // TODO:

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::default::Default;
+use crate::RawBuffer;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Default, Serialize, Deserialize)]
@@ -55,11 +56,12 @@ impl Color {
 }
 
 #[repr(C)]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default)]
 pub struct CommandData {
     pub vec2f: Vec2f,
     pub vec2i: Vec2i,
     pub color: Color,
+    pub string: RawBuffer,
 }
 
 impl CommandData {
@@ -68,6 +70,7 @@ impl CommandData {
             vec2f: data,
             vec2i: Vec2i::default(),
             color: Color::default(),
+            string: RawBuffer::default(),
         }
     }
 
@@ -76,6 +79,7 @@ impl CommandData {
             vec2f: Vec2f::default(),
             vec2i: data,
             color: Color::default(),
+            string: RawBuffer::default(),
         }
     }
 
@@ -84,6 +88,25 @@ impl CommandData {
             vec2f: Vec2f::default(),
             vec2i: Vec2i::default(),
             color: data,
+            string: RawBuffer::default(),
+        }
+    }
+
+    pub fn string(data: &String) -> CommandData {
+        CommandData {
+            vec2f: Vec2f::default(),
+            vec2i: Vec2i::default(),
+            color: Color::default(),
+            string: RawBuffer::from_string(data),
+        }
+    }
+
+    pub fn string_slice(data: &str) -> CommandData {
+        CommandData {
+            vec2f: Vec2f::default(),
+            vec2i: Vec2i::default(),
+            color: Color::default(),
+            string: RawBuffer::from_str_slice(data),
         }
     }
 }
@@ -122,21 +145,21 @@ pub enum ExecutionCommandType {
 }
 
 #[repr(C)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct RenderCommand {
     pub command_type: RenderCommandType,
     pub data: CommandData,
 }
 
 #[repr(C)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ExecutionCommand {
     pub command_type: ExecutionCommandType,
     pub data: CommandData,
 }
 
 #[repr(C)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct RequestCommand {
     pub command_type: RequestCommandType,
     pub data: CommandData,

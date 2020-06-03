@@ -5,15 +5,16 @@ mod flatbuffers_commands;
 
 pub mod commands;
 pub mod components;
+pub mod debug_services;
 pub mod gapi;
 pub mod memory;
 pub mod systems;
-pub mod debug_services;
 
 mod serialize;
 
 use std::os::raw::c_int;
 use std::slice;
+use std::str;
 use std::sync::{Mutex, MutexGuard};
 
 use lazy_static::lazy_static;
@@ -275,6 +276,53 @@ pub struct RawBuffer {
     length: usize,
 }
 
+impl RawBuffer {
+    pub fn from_string(str: &String) -> RawBuffer {
+        RawBuffer {
+            data: str.as_ptr(),
+            length: str.len(),
+        }
+    }
+
+    pub fn from_str_slice(str: &str) -> RawBuffer {
+        RawBuffer {
+            data: str.as_ptr(),
+            length: str.len(),
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        let data = unsafe { slice::from_raw_parts(self.data, self.length) };
+        // TODO: Handle error
+        let utf8_str = str::from_utf8(data).unwrap();
+        String::from(utf8_str)
+    }
+}
+
+impl Default for RawBuffer {
+    fn default() -> Self {
+        RawBuffer {
+            data: "".as_ptr(),
+            length: 0,
+        }
+    }
+}
+
+impl Clone for RawBuffer {
+    fn clone(&self) -> Self {
+        RawBuffer {
+            data: self.data,
+            length: self.length,
+        }
+    }
+}
+
+// TODO: doc
+unsafe impl Send for RawBuffer {}
+
+// TODO: doc
+unsafe impl Sync for RawBuffer {}
+
 #[repr(C)]
 pub struct RenderCommands {
     items: *const RenderCommand,
@@ -330,7 +378,7 @@ pub extern "C" fn c_get_exec_commands() -> ExecutionCommands {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn c_send_request_commands(data: *const RequestCommand, length: c_int) {
+pub extern "C" fn c_send_request_commands(data: *const RequestCommand, length: c_int) {
     match get_application_state().as_mut() {
         Some(application_state) => {
             let mut state = application_state
@@ -339,7 +387,7 @@ pub unsafe extern "C" fn c_send_request_commands(data: *const RequestCommand, le
                 .get_mut::<CommandsState>()
                 .expect("failed to get commands state");
 
-            let requests = slice::from_raw_parts(data, length as usize);
+            let requests = unsafe { slice::from_raw_parts(data, length as usize) };
             state.request_commands.extend_from_slice(requests);
         }
         None => {
