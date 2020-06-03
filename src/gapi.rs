@@ -5,6 +5,10 @@ pub fn push_color_shader(commands_state: &mut CommandsState) {
     push_render_command(commands_state, RenderCommandType::PushColorShader);
 }
 
+pub fn push_text_shader(commands_state: &mut CommandsState) {
+    push_render_command(commands_state, RenderCommandType::PushTextShader);
+}
+
 pub fn push_color(commands_state: &mut CommandsState, color: Color) {
     push_render_command_data(
         commands_state,

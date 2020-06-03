@@ -111,7 +111,7 @@ impl CommandData {
     }
 }
 
-// last: 8
+// last: 9
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum RenderCommandType {
@@ -119,6 +119,7 @@ pub enum RenderCommandType {
     PushVec2f = 1,
     SetColorUniform = 2,
     PushColorShader = 3,
+    PushTextShader = 9,
     PushString = 8,
     DrawLines = 4,
     DrawPoints = 5,

@@ -118,14 +118,14 @@ pub fn step(commands_state: &mut CommandsState) {
 
     for cycle in debug_state.cycles.iter() {
         let text = format!(
-            "{:?} | {} {}:{} {:?}",
-            cycle.thread_id, cycle.name, cycle.file_name, cycle.line, cycle.elapsed
+            "{} {}:{} {}h {:?} | {:?}",
+            cycle.name, cycle.file_name, cycle.line, cycle.hits, cycle.elapsed, cycle.thread_id
         );
         gapi::push_string_xy(commands_state, &text, offset_x, offset_y);
-        // println!("{}", text);
         offset_y += 20.0;
     }
 
+    gapi::push_text_shader(commands_state);
     gapi::draw_text(commands_state);
 
     debug_state.cycles.clear();
