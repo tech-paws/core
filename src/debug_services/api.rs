@@ -5,7 +5,7 @@ use std::sync::{Mutex, MutexGuard};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::commands::CommandsState;
+use crate::commands::{Color, CommandsState, Vec2f};
 use crate::gapi;
 
 lazy_static! {
@@ -114,17 +114,45 @@ pub fn step(commands_state: &mut CommandsState) {
         &mut DEBUG_STATE.lock().expect("failed to get debug state");
 
     let mut offset_y: f32 = 10.0;
-    let offset_x: f32 = 10.0;
+    let mut offset_x: f32 = 10.0;
+    let line_size = 18.0;
+
+    gapi::push_color(commands_state, Color::rgba(0.0, 0.0, 0.0, 0.5));
+    gapi::push_quad(
+        commands_state,
+        Vec2f::new(0.0, 0.0),
+        Vec2f::new(600.0, line_size * debug_state.cycles.len() as f32),
+    );
 
     for cycle in debug_state.cycles.iter() {
-        let text = format!(
-            "{} {}:{} {}h {:?} | {:?}",
-            cycle.name, cycle.file_name, cycle.line, cycle.hits, cycle.elapsed, cycle.thread_id
-        );
+        let text = format!("{:?}", cycle.thread_id);
         gapi::push_string_xy(commands_state, &text, offset_x, offset_y);
-        offset_y += 20.0;
+        offset_x += 100.0;
+
+        gapi::push_string_xy(commands_state, &cycle.name, offset_x, offset_y);
+        offset_x += 200.0;
+
+        let text = format!("{}:{}", cycle.file_name, cycle.line);
+        gapi::push_string_xy(commands_state, &text, offset_x, offset_y);
+        offset_x += 300.0;
+
+        let text = format!("{}h", cycle.hits);
+        gapi::push_string_xy(commands_state, &text, offset_x, offset_y);
+        offset_x += 50.0;
+
+        let text = format!("{:?}", cycle.elapsed);
+        gapi::push_string_xy(commands_state, &text, offset_x, offset_y);
+        offset_x += 100.0;
+
+        let text = format!("{:?} ns/h", cycle.elapsed.as_nanos() / cycle.hits as u128);
+        gapi::push_string_xy(commands_state, &text, offset_x, offset_y);
+
+        offset_y += line_size;
+        offset_x = 10.0;
     }
 
+    gapi::push_color_shader(commands_state);
+    gapi::draw_quads(commands_state);
     gapi::push_text_shader(commands_state);
     gapi::draw_text(commands_state);
 
