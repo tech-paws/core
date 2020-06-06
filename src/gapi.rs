@@ -57,11 +57,6 @@ pub fn draw_quads(commands_state: &mut CommandsState) {
     push_render_command(commands_state, RenderCommandType::DrawQuads);
 }
 
-pub fn push_quad(commands_state: &mut CommandsState, pos: Vec2f, size: Vec2f) {
-    push_vec2f(commands_state, pos);
-    push_vec2f(commands_state, size);
-}
-
 pub fn push_vec2f(commands_state: &mut CommandsState, vec2f: Vec2f) {
     push_render_command_data(
         commands_state,

@@ -139,7 +139,13 @@ pub extern "C" fn step() {
                 .get_mut::<CommandsState>()
                 .expect("failed to get commands state");
 
-            debug_services::step(commands_state);
+            let view_port = state
+                .world
+                .resources
+                .get::<ViewPortSize>()
+                .expect("failed to get commands state");
+
+            debug_services::step(commands_state, &view_port);
         }
         None => {
             panic!("failed to get application state");

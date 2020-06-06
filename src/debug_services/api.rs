@@ -6,6 +6,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::commands::{Color, CommandsState, Vec2f};
+use crate::components::ViewPortSize;
 use crate::gapi;
 
 lazy_static! {
@@ -109,7 +110,7 @@ impl Drop for TimedBlock {
     }
 }
 
-pub fn step(commands_state: &mut CommandsState) {
+pub fn step(commands_state: &mut CommandsState, view_port: &ViewPortSize) {
     let debug_state: &mut MutexGuard<DebugState> =
         &mut DEBUG_STATE.lock().expect("failed to get debug state");
 
@@ -117,12 +118,20 @@ pub fn step(commands_state: &mut CommandsState) {
     let mut offset_x: f32 = 10.0;
     let line_size = 18.0;
 
+    // Background
+    gapi::push_color_shader(commands_state);
     gapi::push_color(commands_state, Color::rgba(0.0, 0.0, 0.0, 0.5));
-    gapi::push_quad(
+    gapi::set_color_uniform(commands_state);
+
+    gapi::push_vec2f(commands_state, Vec2f::new(0.0, 0.0));
+    gapi::push_vec2f(
         commands_state,
-        Vec2f::new(0.0, 0.0),
-        Vec2f::new(600.0, line_size * debug_state.cycles.len() as f32),
+        Vec2f::new(
+            view_port.width as f32,
+            line_size * debug_state.cycles.len() as f32 + 20.0,
+        ),
     );
+    gapi::draw_quads(commands_state);
 
     for cycle in debug_state.cycles.iter() {
         let text = format!("{:?}", cycle.thread_id);
@@ -151,9 +160,10 @@ pub fn step(commands_state: &mut CommandsState) {
         offset_x = 10.0;
     }
 
-    gapi::push_color_shader(commands_state);
-    gapi::draw_quads(commands_state);
+    // Text
     gapi::push_text_shader(commands_state);
+    gapi::push_color(commands_state, Color::rgb(1.0, 1.0, 1.0));
+    gapi::set_color_uniform(commands_state);
     gapi::draw_text(commands_state);
 
     debug_state.cycles.clear();
