@@ -16,7 +16,7 @@ lazy_static! {
 
 const PERFORMANCE_RECORDS_CAPACITY: usize = 512;
 const PERFORMANCE_COUNTER_LOG_SIZE: usize = 120; // max 120 entires
-const SNAPSHOT_INTERVAL: usize = 5; // every 60 frames
+const SNAPSHOT_INTERVAL: usize = 5; // every 5 frames
 
 #[derive(Clone)]
 pub struct PerformanceCounterState {
