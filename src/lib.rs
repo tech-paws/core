@@ -1,3 +1,5 @@
+#![feature(slice_fill)]
+
 #[allow(dead_code, unused_imports)]
 #[allow(clippy::all)]
 #[path = "../schemes/target/rust/commands_generated.rs"]
@@ -132,6 +134,7 @@ pub extern "C" fn step() {
             }
 
             delete_action_entities(&mut state.world);
+            debug_services::debug_frame_end();
 
             let commands_state = &mut state
                 .world
