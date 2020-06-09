@@ -1,5 +1,3 @@
-#![feature(slice_fill)]
-
 #[allow(dead_code, unused_imports)]
 #[allow(clippy::all)]
 #[path = "../schemes/target/rust/commands_generated.rs"]
@@ -117,6 +115,15 @@ fn get_application_state<'a>() -> MutexGuard<'a, Option<ApplicationState>> {
     APPLICATION_STATE
         .lock()
         .expect("failed to get application state")
+}
+
+#[no_mangle]
+pub extern "C" fn frame_start() {
+    debug_services::debug_frame_start();
+}
+
+#[no_mangle]
+pub extern "C" fn frame_end() {
 }
 
 #[no_mangle]
@@ -353,6 +360,8 @@ pub struct ExecutionCommands {
 
 #[no_mangle]
 pub extern "C" fn c_get_render_commands() -> RenderCommands {
+    debug_services::timed_block!("c_get_render_commands");
+
     match get_application_state().as_mut() {
         Some(application_state) => {
             let state = application_state
@@ -374,6 +383,8 @@ pub extern "C" fn c_get_render_commands() -> RenderCommands {
 
 #[no_mangle]
 pub extern "C" fn c_get_exec_commands() -> ExecutionCommands {
+    debug_services::timed_block!("c_get_exec_commands");
+
     match get_application_state().as_mut() {
         Some(application_state) => {
             let state = application_state
@@ -398,6 +409,8 @@ pub extern "C" fn c_get_exec_commands() -> ExecutionCommands {
 /// TODO: Doc
 #[no_mangle]
 pub unsafe extern "C" fn c_send_request_commands(data: *const RequestCommand, length: c_int) {
+    debug_services::timed_block!("c_send_request_commands");
+
     match get_application_state().as_mut() {
         Some(application_state) => {
             let mut state = application_state
@@ -417,6 +430,8 @@ pub unsafe extern "C" fn c_send_request_commands(data: *const RequestCommand, le
 
 #[no_mangle]
 pub extern "C" fn get_render_commands(format: SerializeFormat) -> RawBuffer {
+    debug_services::timed_block!("get_render_commands");
+
     match get_application_state().as_mut() {
         Some(application_state) => {
             let state = application_state
@@ -441,6 +456,8 @@ pub extern "C" fn get_render_commands(format: SerializeFormat) -> RawBuffer {
 
 #[no_mangle]
 pub extern "C" fn get_exec_commands(format: SerializeFormat) -> RawBuffer {
+    debug_services::timed_block!("get_exec_commands");
+
     match get_application_state().as_mut() {
         Some(application_state) => {
             let state = application_state
@@ -463,6 +480,8 @@ pub extern "C" fn get_exec_commands(format: SerializeFormat) -> RawBuffer {
 
 #[no_mangle]
 pub extern "C" fn send_request_commands(format: SerializeFormat, data: RawBuffer) {
+    debug_services::timed_block!("send_request_commands");
+
     match get_application_state().as_mut() {
         Some(application_state) => {
             let mut state = application_state

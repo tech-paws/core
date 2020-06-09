@@ -41,10 +41,12 @@ pub struct PerformanceCounterStatistics {
 }
 
 pub struct DebugState {
-    pub frame_counter: usize,
-    pub snapshot_counter: usize,
-    pub performance_counter_states: Vec<PerformanceCounterState>,
-    pub performance_counter_log: Vec<PerformanceCounterStatistics>,
+    frame_timer: Instant,
+    frame_elapsed: Duration,
+    frame_counter: usize,
+    snapshot_counter: usize,
+    performance_counter_states: Vec<PerformanceCounterState>,
+    performance_counter_log: Vec<PerformanceCounterStatistics>,
 }
 
 impl Default for PerformanceCounterStatistics {
@@ -73,6 +75,8 @@ impl Default for DebugState {
                 PerformanceCounterStatistics::default();
                 PERFORMANCE_COUNTER_LOG_SIZE
             ],
+            frame_timer: Instant::now(),
+            frame_elapsed: Duration::from_nanos(0),
         }
     }
 }
@@ -173,12 +177,23 @@ pub fn debug_frame_end() {
         &mut DEBUG_STATE.lock().expect("failed to get debug state");
 
     debug_state.frame_counter += 1;
+    debug_state.frame_elapsed = debug_state.frame_timer.elapsed();
 
     if debug_state.frame_counter >= SNAPSHOT_INTERVAL {
         take_snapshot(debug_state);
         debug_state.frame_counter = 0;
-        debug_state.performance_counter_states.fill(PerformanceCounterState::default());
+
+        for i in 0..SNAPSHOT_INTERVAL {
+            debug_state.performance_counter_states[i] = PerformanceCounterState::default();
+        }
     }
+}
+
+pub fn debug_frame_start() {
+    let debug_state: &mut MutexGuard<DebugState> =
+        &mut DEBUG_STATE.lock().expect("failed to get debug state");
+
+    debug_state.frame_timer = Instant::now();
 }
 
 fn take_snapshot(debug_state: &mut MutexGuard<DebugState>) {
@@ -215,7 +230,8 @@ fn take_snapshot(debug_state: &mut MutexGuard<DebugState>) {
             (record.sum_elapsed.as_nanos() as f64 / total_elapsed as f64) as f32 * 100.0;
     }
 
-    let mut records: Vec<PerformanceCounterStatisticsRecord> = statistics.values().cloned().collect();
+    let mut records: Vec<PerformanceCounterStatisticsRecord> =
+        statistics.values().cloned().collect();
     records.sort_by(|a, b| b.percent.partial_cmp(&a.percent).unwrap());
 
     let counter = debug_state.snapshot_counter;
@@ -229,7 +245,16 @@ pub fn step(commands_state: &mut CommandsState, view_port: &ViewPortSize) {
     let debug_state: &mut MutexGuard<DebugState> =
         &mut DEBUG_STATE.lock().expect("failed to get debug state");
 
-    let mut offset_y: f32 = 10.0;
+    render_profile(debug_state, commands_state, view_port);
+    render_frame_time(debug_state, commands_state);
+}
+
+fn render_profile(
+    debug_state: &mut MutexGuard<DebugState>,
+    commands_state: &mut CommandsState,
+    view_port: &ViewPortSize,
+) {
+    let mut offset_y: f32 = 35.0;
     let mut offset_x: f32 = 10.0;
     let line_size = 18.0;
 
@@ -240,7 +265,7 @@ pub fn step(commands_state: &mut CommandsState, view_port: &ViewPortSize) {
     gapi::push_color(commands_state, Color::rgba(0.0, 0.0, 0.0, 0.5));
     gapi::set_color_uniform(commands_state);
 
-    gapi::push_vec2f(commands_state, Vec2f::new(0.0, 0.0));
+    gapi::push_vec2f(commands_state, Vec2f::new(0.0, offset_y - 10.0));
     gapi::push_vec2f(
         commands_state,
         Vec2f::new(
@@ -287,6 +312,16 @@ pub fn step(commands_state: &mut CommandsState, view_port: &ViewPortSize) {
     // Text
     gapi::push_text_shader(commands_state);
     gapi::push_color(commands_state, Color::rgb(1.0, 1.0, 1.0));
+    gapi::set_color_uniform(commands_state);
+    gapi::draw_text(commands_state);
+}
+
+fn render_frame_time(debug_state: &mut MutexGuard<DebugState>, commands_state: &mut CommandsState) {
+    let text = format!("{:.2} ms", debug_state.frame_elapsed.as_nanos() as f64 / 1_000_000.0);
+    gapi::push_string_xy(commands_state, &text, 5.0, 5.0);
+
+    gapi::push_text_shader(commands_state);
+    gapi::push_color(commands_state, Color::rgb(0.0, 0.0, 0.0));
     gapi::set_color_uniform(commands_state);
     gapi::draw_text(commands_state);
 }
