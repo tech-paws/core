@@ -41,6 +41,7 @@ pub struct PerformanceCounterStatistics {
 }
 
 pub struct DebugState {
+    _global_pause: bool,
     frame_timer: Instant,
     frame_elapsed: Duration,
     frame_counter: usize,
@@ -68,6 +69,7 @@ impl Default for PerformanceCounterState {
 impl Default for DebugState {
     fn default() -> Self {
         DebugState {
+            _global_pause: false,
             frame_counter: 0,
             snapshot_counter: 0,
             performance_counter_states: vec![PerformanceCounterState::default(); SNAPSHOT_INTERVAL],
@@ -247,6 +249,7 @@ pub fn step(commands_state: &mut CommandsState, view_port: &ViewPortSize) {
 
     render_profile(debug_state, commands_state, view_port);
     render_frame_time(debug_state, commands_state);
+    render_frames_log(debug_state, commands_state);
 }
 
 fn render_profile(
@@ -276,10 +279,6 @@ fn render_profile(
     gapi::draw_quads(commands_state);
 
     for cycle in snapshot.iter() {
-        // let text = format!("{:?}", cycle.thread_id);
-        // gapi::push_string_xy(commands_state, &text, offset_x, offset_y);
-        // offset_x += 100.0;
-
         let text = format!("{:.2}%", cycle.percent);
         gapi::push_string_xy(commands_state, &text, offset_x, offset_y);
         offset_x += 100.0;
@@ -317,11 +316,62 @@ fn render_profile(
 }
 
 fn render_frame_time(debug_state: &mut MutexGuard<DebugState>, commands_state: &mut CommandsState) {
-    let text = format!("{:.2} ms", debug_state.frame_elapsed.as_nanos() as f64 / 1_000_000.0);
+    let text = format!(
+        "{:.2} ms",
+        debug_state.frame_elapsed.as_nanos() as f64 / 1_000_000.0
+    );
     gapi::push_string_xy(commands_state, &text, 5.0, 5.0);
 
     gapi::push_text_shader(commands_state);
     gapi::push_color(commands_state, Color::rgb(0.0, 0.0, 0.0));
     gapi::set_color_uniform(commands_state);
     gapi::draw_text(commands_state);
+}
+
+fn render_frames_log(debug_state: &mut MutexGuard<DebugState>, commands_state: &mut CommandsState) {
+    let mut offset_x = 10.0;
+    let offset_y = 250.0;
+    let bar_width = 3.0;
+    let bar_height = 25.0;
+    let bar_space = 2.0;
+    let border_width = 2.0;
+
+    // Background
+    gapi::push_color_shader(commands_state);
+
+    gapi::push_vec2f(
+        commands_state,
+        Vec2f::new(offset_x - border_width, offset_y - border_width),
+    );
+
+    gapi::push_color(commands_state, Color::rgb(0.5, 0.5, 0.5));
+    gapi::set_color_uniform(commands_state);
+
+    gapi::push_vec2f(
+        commands_state,
+        Vec2f::new(
+            (bar_width + bar_space) * PERFORMANCE_COUNTER_LOG_SIZE as f32 - bar_space
+                + border_width * 2.0,
+            bar_height + border_width * 2.0,
+        ),
+    );
+    gapi::draw_quads(commands_state);
+
+    let current_snapshot = debug_state.snapshot_counter;
+
+    for i in 0..PERFORMANCE_COUNTER_LOG_SIZE {
+        if current_snapshot == i {
+            gapi::push_color(commands_state, Color::rgb(0.0, 1.0, 0.0));
+            gapi::set_color_uniform(commands_state);
+        } else {
+            gapi::push_color(commands_state, Color::rgb(0.2, 0.2, 0.2));
+            gapi::set_color_uniform(commands_state);
+        }
+
+        gapi::push_vec2f(commands_state, Vec2f::new(offset_x, offset_y));
+        gapi::push_vec2f(commands_state, Vec2f::new(bar_width, bar_height));
+        gapi::draw_quads(commands_state);
+
+        offset_x += bar_width + bar_space;
+    }
 }
