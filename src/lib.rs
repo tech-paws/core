@@ -39,6 +39,7 @@ pub enum SerializeFormat {
 }
 
 static mut SCHEDULER: Option<Schedule> = None;
+static mut SCHEDULER_2: Option<Schedule> = None;
 
 lazy_static! {
     static ref APPLICATION_STATE: Mutex<Option<ApplicationState>> = Mutex::new(None);
@@ -90,10 +91,16 @@ pub extern "C" fn init_world() {
     unsafe {
         SCHEDULER = Some(
             Schedule::builder()
-                .add_system(move_camera_system())
                 .add_system(camera_system())
                 .add_system(grid_system())
                 .add_system(work_area_system())
+                .flush()
+                .build(),
+        );
+
+        SCHEDULER_2 = Some(
+            Schedule::builder()
+                .add_system(move_camera_system())
                 .add_system(render_touch_system())
                 .flush()
                 .build(),
@@ -135,6 +142,13 @@ pub extern "C" fn step() {
 
             unsafe {
                 SCHEDULER
+                    .as_mut()
+                    .expect("failed to get scheduler")
+                    .execute(&mut state.world);
+            }
+
+            unsafe {
+                SCHEDULER_2
                     .as_mut()
                     .expect("failed to get scheduler")
                     .execute(&mut state.world);

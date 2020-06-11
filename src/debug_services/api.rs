@@ -16,7 +16,14 @@ lazy_static! {
 
 const PERFORMANCE_RECORDS_CAPACITY: usize = 512;
 const PERFORMANCE_COUNTER_LOG_SIZE: usize = 120; // max 120 entires
-const SNAPSHOT_INTERVAL: usize = 5; // every 5 frames
+                                                 // const SNAPSHOT_INTERVAL: usize = 10; // every 5 frames
+
+pub struct FrameStaticstic {
+    start_frame: Duration,
+    s1_time: Duration,
+    s2_time: Duration,
+    end_frame: Duration,
+}
 
 #[derive(Clone)]
 pub struct PerformanceCounterState {
@@ -33,6 +40,7 @@ pub struct PerformanceCounterStatisticsRecord {
     pub sum_hits_over_elapsed: u128,
     pub hits: u32,
     pub percent: f32,
+    pub thread_id: String,
 }
 
 #[derive(Clone, Debug)]
@@ -42,6 +50,7 @@ pub struct PerformanceCounterStatistics {
 
 pub struct DebugState {
     _global_pause: bool,
+    snapshot_interval: usize,
     frame_timer: Instant,
     frame_elapsed: Duration,
     frame_counter: usize,
@@ -68,11 +77,14 @@ impl Default for PerformanceCounterState {
 
 impl Default for DebugState {
     fn default() -> Self {
+        let snapshot_interval = 1;
+
         DebugState {
             _global_pause: false,
             frame_counter: 0,
             snapshot_counter: 0,
-            performance_counter_states: vec![PerformanceCounterState::default(); SNAPSHOT_INTERVAL],
+            snapshot_interval: snapshot_interval,
+            performance_counter_states: vec![PerformanceCounterState::default(); snapshot_interval],
             performance_counter_log: vec![
                 PerformanceCounterStatistics::default();
                 PERFORMANCE_COUNTER_LOG_SIZE
@@ -97,6 +109,7 @@ pub struct ClocsDebugRecord {
     pub line: u32,
     pub elapsed: Duration,
     pub hits: u32,
+    pub thread_id: thread::ThreadId,
 }
 
 impl Default for ClocsDebugRecord {
@@ -107,6 +120,7 @@ impl Default for ClocsDebugRecord {
             line: 0,
             elapsed: Duration::from_nanos(0),
             hits: 0,
+            thread_id: thread::current().id(),
         }
     }
 }
@@ -159,6 +173,7 @@ impl Drop for TimedBlock {
                 name: self.name,
                 file_name: self.file_name,
                 line: self.line,
+                thread_id: thread::current().id(),
                 elapsed,
                 hits,
             };
@@ -167,6 +182,7 @@ impl Drop for TimedBlock {
                 name: self.name,
                 file_name: self.file_name,
                 line: self.line,
+                thread_id: thread::current().id(),
                 elapsed,
                 hits,
             });
@@ -181,11 +197,13 @@ pub fn debug_frame_end() {
     debug_state.frame_counter += 1;
     debug_state.frame_elapsed = debug_state.frame_timer.elapsed();
 
-    if debug_state.frame_counter >= SNAPSHOT_INTERVAL {
+    let snapshot_interval = debug_state.snapshot_interval;
+
+    if debug_state.frame_counter >= snapshot_interval {
         take_snapshot(debug_state);
         debug_state.frame_counter = 0;
 
-        for i in 0..SNAPSHOT_INTERVAL {
+        for i in 0..snapshot_interval {
             debug_state.performance_counter_states[i] = PerformanceCounterState::default();
         }
     }
@@ -219,6 +237,7 @@ fn take_snapshot(debug_state: &mut MutexGuard<DebugState>) {
             element.sum_hits += record.hits;
             element.sum_hits_over_elapsed += record.elapsed.as_nanos() / record.hits as u128;
             element.hits += 1;
+            element.thread_id = format!("{:?}", record.thread_id);
         }
     }
 
@@ -243,9 +262,15 @@ fn take_snapshot(debug_state: &mut MutexGuard<DebugState>) {
     snapshot.append(&mut records);
 }
 
+pub fn update_snapshot_interval(debug_state: &mut MutexGuard<DebugState>, new_interval: usize) {
+    debug_state.snapshot_interval = new_interval;
+    debug_state
+        .performance_counter_states
+        .resize(new_interval, PerformanceCounterState::default());
+}
+
 pub fn step(commands_state: &mut CommandsState, view_port: &ViewPortSize) {
-    let debug_state: &mut MutexGuard<DebugState> =
-        &mut DEBUG_STATE.lock().expect("failed to get debug state");
+    let debug_state = &mut DEBUG_STATE.lock().expect("failed to get debug state");
 
     render_profile(debug_state, commands_state, view_port);
     render_frame_time(debug_state, commands_state);
@@ -279,6 +304,10 @@ fn render_profile(
     gapi::draw_quads(commands_state);
 
     for cycle in snapshot.iter() {
+        let text = format!("{}", cycle.thread_id);
+        gapi::push_string_xy(commands_state, &text, offset_x, offset_y);
+        offset_x += 100.0;
+
         let text = format!("{:.2}%", cycle.percent);
         gapi::push_string_xy(commands_state, &text, offset_x, offset_y);
         offset_x += 100.0;
