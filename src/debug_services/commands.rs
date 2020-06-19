@@ -1,4 +1,6 @@
+use regex::Regex;
 use serde::{Deserialize, Serialize};
+
 use std::collections::HashMap;
 use std::sync::MutexGuard;
 
@@ -22,10 +24,19 @@ impl Default for CommandsState {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub enum CommandArgument {
     Number(f64),
     String(String),
+    Bool(bool),
+}
+
+#[derive(PartialEq, Debug)]
+pub enum Token<'a> {
+    Number(f64),
+    Id(&'a str),
+    String(&'a str),
+    Bool(bool),
 }
 
 pub struct Command {
@@ -34,6 +45,7 @@ pub struct Command {
     pub executor: fn(&mut MutexGuard<DebugState>, &[CommandArgument]) -> Result<(), String>,
 }
 
+#[derive(PartialEq, Debug)]
 pub struct CommandRequest {
     pub command: String,
     pub arguments: Vec<CommandArgument>,
@@ -43,7 +55,7 @@ pub struct CommandRegistryEntry {
     pub namespace: String,
     pub name: String,
     pub args: String,
-    pub desc: &'static str,
+    pub _desc: &'static str,
 }
 
 pub fn register_command(
@@ -55,7 +67,7 @@ pub fn register_command(
         namespace: command.namespace.clone(),
         name: command.name.clone(),
         args: String::from("<arguments: int>"),
-        desc: desc,
+        _desc: desc,
     });
 
     debug_state.commands.index.insert(
@@ -72,21 +84,53 @@ pub fn execute_command(command: &str) -> Result<(), String> {
 }
 
 fn parse_command(command: &str) -> Result<CommandRequest, String> {
-    let mut components = command.split_whitespace();
+    let tokens = tokenize(command);
 
-    if components.clone().count() < 1 {
+    if tokens.is_empty() {
         Err(String::from("Command can't be empty"))
     } else {
-        let command = components.next().unwrap();
-        let command = String::from(command);
-        let arguments = Vec::new();
+        let command = if let Token::Id(id) = tokens[0] {
+            id
+        } else {
+            return Err(String::from("Parse error"));
+        };
 
-        for _ in components {
-            // TODO
+        let command = String::from(command);
+        let mut arguments = Vec::new();
+
+        for token in tokens.iter().skip(1) {
+            match *token {
+                Token::String(value) => {
+                    arguments.push(CommandArgument::String(String::from(value)))
+                }
+                Token::Number(value) => arguments.push(CommandArgument::Number(value)),
+                Token::Bool(value) => arguments.push(CommandArgument::Bool(value)),
+                _ => return Err(String::from("Parse error")),
+            }
         }
 
         Ok(CommandRequest { command, arguments })
     }
+}
+
+fn tokenize<'a>(command: &'a str) -> Vec<Token<'a>> {
+    let mut tokens = Vec::new();
+
+    let re = Regex::new(r###"(?P<bool>true|false)|("(?P<string>[^"]*)")|(?P<id>[a-zA-Z_][a-zA-Z:0-9_-]+)|(?P<number>[0-9]+(\.[0-9]+)?)"###).unwrap();
+
+    for cap in re.captures_iter(command) {
+        if let Some(m) = cap.name("id") {
+            tokens.push(Token::Id(m.as_str()));
+        } else if let Some(m) = cap.name("string") {
+            tokens.push(Token::String(m.as_str()));
+        } else if let Some(m) = cap.name("number") {
+            tokens.push(Token::Number(m.as_str().parse().unwrap()));
+        } else if let Some(m) = cap.name("bool") {
+            tokens.push(Token::Bool(m.as_str().parse().unwrap()));
+        }
+    }
+
+    tokens
 }
 
 fn execute_command_request(
@@ -107,5 +151,86 @@ pub fn require(cond: bool, msg: &str) -> Result<(), String> {
         Ok(())
     } else {
         Err(String::from(msg))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::debug_services::commands;
+
+    #[test]
+    fn tokenize() {
+        let tokens = commands::tokenize("greet::hello test 12 55.9 \"Hello World!\" false true");
+        assert_eq!(
+            tokens,
+            vec![
+                commands::Token::Id("greet::hello"),
+                commands::Token::Id("test"),
+                commands::Token::Number(12.0),
+                commands::Token::Number(55.9),
+                commands::Token::String("Hello World!"),
+                commands::Token::Bool(false),
+                commands::Token::Bool(true),
+            ]
+        )
+    }
+
+    #[test]
+    fn parse_command_without_arguments() {
+        let request = commands::parse_command("greet::say_hello").unwrap();
+        assert_eq!(
+            request,
+            commands::CommandRequest {
+                command: String::from("greet::say_hello"),
+                arguments: vec![],
+            }
+        );
+    }
+
+    #[test]
+    fn parse_command_number() {
+        let request = commands::parse_command("math::max 12 88.12").unwrap();
+        assert_eq!(
+            request,
+            commands::CommandRequest {
+                command: String::from("math::max"),
+                arguments: vec![
+                    commands::CommandArgument::Number(12.0),
+                    commands::CommandArgument::Number(88.12)
+                ],
+            }
+        );
+    }
+
+    #[test]
+    fn parse_command_string() {
+        let request = commands::parse_command("greet::print_hello \"<User Name>\"").unwrap();
+        assert_eq!(
+            request,
+            commands::CommandRequest {
+                command: String::from("greet::print_hello"),
+                arguments: vec![commands::CommandArgument::String(String::from(
+                    "<User Name>"
+                ))],
+            }
+        );
+    }
+
+    #[test]
+    fn parse_command() {
+        let request =
+            commands::parse_command("math::max_and_print 12 88.12 \"Max: \" true").unwrap();
+        assert_eq!(
+            request,
+            commands::CommandRequest {
+                command: String::from("math::max_and_print"),
+                arguments: vec![
+                    commands::CommandArgument::Number(12.0),
+                    commands::CommandArgument::Number(88.12),
+                    commands::CommandArgument::String(String::from("Max: ")),
+                    commands::CommandArgument::Bool(true)
+                ],
+            }
+        );
     }
 }

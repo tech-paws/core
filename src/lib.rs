@@ -533,30 +533,30 @@ fn set_view_port_size(world: &mut World, width: i32, height: i32) {
     view_port_size.height = height;
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        crate::init_world();
-        let json = "[{\"SetViewportSize\": {\"width: 100, \"height\": 200}}]".as_bytes();
-        let data = crate::RawBuffer {
-            data: json.as_ptr(),
-            length: json.len(),
-        };
-        crate::send_request_commands(crate::SerializeFormat::Json, data);
-        // crate::step();
-        // let mut commands_state = crate::commands::CommandsState::default();
-        // crate::render::gapi::push_color_shader(&mut commands_state);
-        let data = crate::get_render_commands(crate::SerializeFormat::Json);
-        println!("{:?}", data);
-        log::error!("Commencing yak shaving");
-        panic!(":(");
-        // crate::get_render_commands();
-        // crate::step();
-        // let data = crate::get_render_commands();
+// #[cfg(test)]
+// mod tests {
+//     #[test]
+//     fn it_works() {
+//         crate::init_world();
+//         let json = "[{\"SetViewportSize\": {\"width: 100, \"height\": 200}}]".as_bytes();
+//         let data = crate::RawBuffer {
+//             data: json.as_ptr(),
+//             length: json.len(),
+//         };
+//         crate::send_request_commands(crate::SerializeFormat::Json, data);
+//         // crate::step();
+//         // let mut commands_state = crate::commands::CommandsState::default();
+//         // crate::render::gapi::push_color_shader(&mut commands_state);
+//         let data = crate::get_render_commands(crate::SerializeFormat::Json);
+//         println!("{:?}", data);
+//         log::error!("Commencing yak shaving");
+//         panic!(":(");
+//         // crate::get_render_commands();
+//         // crate::step();
+//         // let data = crate::get_render_commands();
 
-        // dbg!(data);
+//         // dbg!(data);
 
-        assert_eq!(2 + 2, 4);
-    }
-}
+//         assert_eq!(2 + 2, 4);
+//     }
+// }

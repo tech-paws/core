@@ -2,7 +2,7 @@ use std::sync::MutexGuard;
 
 use crate::debug_services::commands::*;
 use crate::debug_services::profile;
-use crate::debug_services::state::{DebugState, DEBUG_STATE};
+use crate::debug_services::state::DebugState;
 
 pub fn init(debug_state: &mut MutexGuard<DebugState>) {
     register_command(
@@ -17,11 +17,9 @@ pub fn init(debug_state: &mut MutexGuard<DebugState>) {
 }
 
 fn set_snapshot_interval_command(
-    _: &mut MutexGuard<DebugState>,
+    debug_state: &mut MutexGuard<DebugState>,
     arguments: &[CommandArgument],
 ) -> Result<(), String> {
-    let debug_state = &mut DEBUG_STATE.lock().expect("failed to get debug state");
-
     require(arguments.len() == 1, "bad arguments length")?;
 
     let interval = match arguments[0] {
