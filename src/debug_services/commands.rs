@@ -157,6 +157,7 @@ pub fn require(cond: bool, msg: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use crate::debug_services::commands;
+    use std::sync::MutexGuard;
 
     #[test]
     fn tokenize() {
@@ -220,6 +221,7 @@ mod tests {
     fn parse_command() {
         let request =
             commands::parse_command("math::max_and_print 12 88.12 \"Max: \" true").unwrap();
+
         assert_eq!(
             request,
             commands::CommandRequest {
@@ -232,5 +234,93 @@ mod tests {
                 ],
             }
         );
+    }
+
+    #[test]
+    fn execute_command() {
+        {
+            let debug_state = &mut commands::DEBUG_STATE
+                .lock()
+                .expect("failed to get debug state");
+
+            commands::register_command(
+                debug_state,
+                "Test commands",
+                commands::Command {
+                    namespace: String::from("math"),
+                    name: String::from("sum"),
+                    executor: sum_command,
+                },
+            );
+        }
+        assert_eq!(true, commands::execute_command("math::sum 2 2").is_ok());
+    }
+
+    #[test]
+    fn execute_command_failed_type() {
+        {
+            let debug_state = &mut commands::DEBUG_STATE
+                .lock()
+                .expect("failed to get debug state");
+
+            commands::register_command(
+                debug_state,
+                "Test commands",
+                commands::Command {
+                    namespace: String::from("math"),
+                    name: String::from("sum"),
+                    executor: sum_command,
+                },
+            );
+        }
+
+        let res = commands::execute_command("math::sum 2 \"2\"");
+
+        assert_eq!(true, res.is_err());
+        assert_eq!("second argument should be number", res.err().unwrap());
+    }
+
+    #[test]
+    fn execute_command_failed() {
+        {
+            let debug_state = &mut commands::DEBUG_STATE
+                .lock()
+                .expect("failed to get debug state");
+
+            commands::register_command(
+                debug_state,
+                "Test commands",
+                commands::Command {
+                    namespace: String::from("math"),
+                    name: String::from("sum"),
+                    executor: sum_command,
+                },
+            );
+        }
+
+        let res = commands::execute_command("math::sum 2");
+
+        assert_eq!(true, res.is_err());
+        assert_eq!("bad arguments length", res.err().unwrap());
+    }
+
+    fn sum_command(
+        _: &mut MutexGuard<commands::DebugState>,
+        arguments: &[commands::CommandArgument],
+    ) -> Result<(), String> {
+        commands::require(arguments.len() == 2, "bad arguments length")?;
+
+        let a = match arguments[0] {
+            commands::CommandArgument::Number(val) => Ok(val),
+            _ => Err(String::from("first argument should be number")),
+        }?;
+
+        let b = match arguments[1] {
+            commands::CommandArgument::Number(val) => Ok(val),
+            _ => Err(String::from("second argument should be number")),
+        }?;
+
+        println!("{} + {} = {}", a, b, a + b);
+        Ok(())
     }
 }
