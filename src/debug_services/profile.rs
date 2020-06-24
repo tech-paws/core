@@ -7,7 +7,8 @@ use std::thread;
 use crate::debug_services::state::{DebugState, DEBUG_STATE};
 
 pub const PERFORMANCE_RECORDS_CAPACITY: usize = 512;
-pub const PERFORMANCE_COUNTER_LOG_SIZE: usize = 120; // max 120 entires
+pub const PERFORMANCE_COUNTER_LOG_SIZE: usize = 120; // max entires
+pub const PERFORMANCE_COUNTER_STATE_SIZE: usize = 60; // max entires
 
 pub struct ProfileState {
     pub snapshot_interval: usize,
@@ -27,7 +28,10 @@ impl Default for ProfileState {
             frame_counter: 0,
             snapshot_counter: 0,
             snapshot_interval,
-            performance_counter_states: vec![PerformanceCounterState::default(); 60],
+            performance_counter_states: vec![
+                PerformanceCounterState::default();
+                PERFORMANCE_COUNTER_STATE_SIZE
+            ],
             performance_counter_log: vec![
                 PerformanceCounterStatistics::default();
                 PERFORMANCE_COUNTER_LOG_SIZE
@@ -241,7 +245,7 @@ fn take_snapshot(debug_state: &mut MutexGuard<DebugState>) {
 }
 
 pub fn update_snapshot_interval(debug_state: &mut MutexGuard<DebugState>, new_interval: usize) {
-    if new_interval <= 60 {
+    if new_interval <= PERFORMANCE_COUNTER_STATE_SIZE {
         debug_state.profile.snapshot_interval = new_interval;
     }
 }
