@@ -142,7 +142,10 @@ fn execute_command_request(
             let executor = command.executor;
             executor(debug_state, &request.arguments)
         }
-        None => Err(String::from("Command hasn't found")),
+        None => Err(String::from(format!(
+            "Command '{}' not found",
+            request.command
+        ))),
     }
 }
 

@@ -48,6 +48,7 @@ lazy_static! {
 #[no_mangle]
 pub extern "C" fn init_world() {
     env_logger::init();
+    debug_services::init();
 
     let universe = Universe::new();
     let mut world = universe.create_world();
@@ -416,6 +417,15 @@ pub extern "C" fn c_get_exec_commands() -> ExecutionCommands {
             panic!("failed to get application state");
         }
     }
+}
+
+#[no_mangle]
+pub extern "C" fn c_execute_command(data: RawBuffer) {
+    debug_services::timed_block!("c_execute_command");
+
+    println!("{}", data.data_to_string());
+    // TODO: Send error to frontend
+    debug_services::execute_command(data.data_to_string().as_str()).unwrap();
 }
 
 /// # Safety

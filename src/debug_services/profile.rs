@@ -27,7 +27,7 @@ impl Default for ProfileState {
             frame_counter: 0,
             snapshot_counter: 0,
             snapshot_interval,
-            performance_counter_states: vec![PerformanceCounterState::default(); snapshot_interval],
+            performance_counter_states: vec![PerformanceCounterState::default(); 60],
             performance_counter_log: vec![
                 PerformanceCounterStatistics::default();
                 PERFORMANCE_COUNTER_LOG_SIZE
@@ -241,9 +241,7 @@ fn take_snapshot(debug_state: &mut MutexGuard<DebugState>) {
 }
 
 pub fn update_snapshot_interval(debug_state: &mut MutexGuard<DebugState>, new_interval: usize) {
-    debug_state.profile.snapshot_interval = new_interval;
-    debug_state
-        .profile
-        .performance_counter_states
-        .resize(new_interval, PerformanceCounterState::default());
+    if new_interval <= 60 {
+        debug_state.profile.snapshot_interval = new_interval;
+    }
 }

@@ -5,6 +5,8 @@ use crate::debug_services::profile;
 use crate::debug_services::render;
 use crate::debug_services::state::DEBUG_STATE;
 
+pub use crate::debug_services::commands::*;
+
 pub fn debug_frame_end() {
     let debug_state = &mut DEBUG_STATE.lock().expect("failed to get debug state");
     profile::frame_end(debug_state);
