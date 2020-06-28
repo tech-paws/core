@@ -18,6 +18,9 @@ pub struct ProfileState {
     pub snapshot_counter: usize,
     pub performance_counter_states: Vec<PerformanceCounterState>,
     pub performance_counter_log: Vec<PerformanceCounterStatistics>,
+    pub timed_blocks: HashMap<u64, TimedBlock>,
+    // TODO: Make proper id managment
+    pub last_timed_block_id: u64,
 }
 
 impl Default for ProfileState {
@@ -38,6 +41,8 @@ impl Default for ProfileState {
             ],
             frame_timer: Instant::now(),
             frame_elapsed: Duration::from_nanos(0),
+            timed_blocks: HashMap::new(),
+            last_timed_block_id: 0,
         }
     }
 }
@@ -104,7 +109,9 @@ impl Default for ClocsDebugRecord {
     }
 }
 
+#[derive(Clone)]
 pub struct TimedBlock {
+    manual_drop: bool,
     pub thread_id: thread::ThreadId,
     pub name: &'static str,
     pub file_name: &'static str,
@@ -118,6 +125,7 @@ impl TimedBlock {
             name,
             file_name,
             line,
+            manual_drop: false,
             thread_id: thread::current().id(),
             timer: Instant::now(),
         }
@@ -126,45 +134,8 @@ impl TimedBlock {
 
 impl Drop for TimedBlock {
     fn drop(&mut self) {
-        let debug_state = &mut DEBUG_STATE.lock().expect("failed to get debug state");
-        let profile_state = &mut debug_state.profile;
-
-        let mut hits = 1;
-        let mut elapsed = self.timer.elapsed();
-        let mut to_modify = false;
-        let mut modify_idx: usize = 0;
-
-        let frame_counter = profile_state.frame_counter;
-        let records = &mut profile_state.performance_counter_states[frame_counter].records;
-
-        // NOTE(Andrey): Right now this method is faster than Map
-        for (i, c) in records.iter().enumerate() {
-            if c.name == self.name && c.file_name == self.file_name && c.line == self.line {
-                hits += c.hits;
-                elapsed += c.elapsed;
-                to_modify = true;
-                modify_idx = i;
-            }
-        }
-
-        if to_modify {
-            records[modify_idx] = ClocsDebugRecord {
-                name: self.name,
-                file_name: self.file_name,
-                line: self.line,
-                thread_id: thread::current().id(),
-                elapsed,
-                hits,
-            };
-        } else {
-            records.push(ClocsDebugRecord {
-                name: self.name,
-                file_name: self.file_name,
-                line: self.line,
-                thread_id: thread::current().id(),
-                elapsed,
-                hits,
-            });
+        if !self.manual_drop {
+            drop_timed_block(self, &mut get_debug_state());
         }
     }
 }
@@ -174,6 +145,90 @@ macro_rules! timed_block {
     ($name:expr) => {
         crate::debug_services::profile::TimedBlock::new($name, file!(), line!())
     };
+}
+
+fn get_debug_state<'a>() -> MutexGuard<'a, DebugState> {
+    DEBUG_STATE.lock().expect("failed to get debug state")
+}
+
+pub fn push_timed_block(name: &'static str, file_name: &'static str, line: u32) -> u64 {
+    let debug_state = &mut get_debug_state();
+
+    let block = TimedBlock {
+        name,
+        file_name,
+        line,
+        manual_drop: true,
+        thread_id: thread::current().id(),
+        timer: Instant::now(),
+    };
+
+    let id = debug_state.profile.last_timed_block_id;
+
+    debug_state.profile.last_timed_block_id += 1;
+    debug_state.profile.timed_blocks.insert(id, block);
+
+    id
+}
+
+pub fn drop_timed_block_by_id(id: u64) {
+    let debug_state = &mut get_debug_state();
+    let block = match debug_state.profile.timed_blocks.get(&id) {
+        Some(value) => value.clone(),
+        None => {
+            log::warn!("Couldn't drop block by id: {}", id);
+            return;
+        }
+    };
+
+    drop_timed_block(&block, debug_state);
+    debug_state.profile.timed_blocks.remove(&id);
+}
+
+pub fn drop_timed_block(timed_block: &TimedBlock, debug_state: &mut MutexGuard<DebugState>) {
+    let profile_state = &mut debug_state.profile;
+
+    let mut hits = 1;
+    let mut elapsed = timed_block.timer.elapsed();
+    let mut to_modify = false;
+    let mut modify_idx: usize = 0;
+
+    let frame_counter = profile_state.frame_counter;
+    let records = &mut profile_state.performance_counter_states[frame_counter].records;
+
+    // NOTE(Andrey): Right now this method is faster than Map
+    for (i, c) in records.iter().enumerate() {
+        if c.name == timed_block.name
+            && c.file_name == timed_block.file_name
+            && c.line == timed_block.line
+        {
+            hits += c.hits;
+            elapsed += c.elapsed;
+            to_modify = true;
+            modify_idx = i;
+        }
+    }
+
+    if to_modify {
+        records[modify_idx] = ClocsDebugRecord {
+            name: timed_block.name,
+            file_name: timed_block.file_name,
+            line: timed_block.line,
+            thread_id: thread::current().id(),
+            elapsed,
+            hits,
+        };
+    }
+    else {
+        records.push(ClocsDebugRecord {
+            name: timed_block.name,
+            file_name: timed_block.file_name,
+            line: timed_block.line,
+            thread_id: thread::current().id(),
+            elapsed,
+            hits,
+        });
+    }
 }
 
 pub fn frame_start(debug_state: &mut MutexGuard<DebugState>) {

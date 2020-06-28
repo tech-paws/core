@@ -34,20 +34,20 @@ pub fn profile(
     gapi::draw_quads(commands_state);
 
     for cycle in snapshot.iter() {
-        let text = format!("{:?}", cycle.thread_id);
-        gapi::push_string_xy(commands_state, &text, offset_x, offset_y);
-        offset_x += 100.0;
+        // let text = format!("{:?}", cycle.thread_id);
+        // gapi::push_string_xy(commands_state, &text, offset_x, offset_y);
+        // offset_x += 100.0;
 
         let text = format!("{:.2}%", cycle.percent);
         gapi::push_string_xy(commands_state, &text, offset_x, offset_y);
         offset_x += 100.0;
 
         gapi::push_string_xy(commands_state, &cycle.name, offset_x, offset_y);
-        offset_x += 200.0;
+        offset_x += 250.0;
 
         let text = format!("{}:{}", cycle.file_name, cycle.line);
         gapi::push_string_xy(commands_state, &text, offset_x, offset_y);
-        offset_x += 300.0;
+        offset_x += 250.0;
 
         let text = format!("{}h", cycle.sum_hits / cycle.hits);
         gapi::push_string_xy(commands_state, &text, offset_x, offset_y);
@@ -89,7 +89,7 @@ pub fn frame_time(debug_state: &mut MutexGuard<DebugState>, commands_state: &mut
 
 pub fn frames_log(debug_state: &mut MutexGuard<DebugState>, commands_state: &mut CommandsState) {
     let mut offset_x = 10.0;
-    let offset_y = 250.0;
+    let offset_y = 500.0;
     let bar_width = 3.0;
     let bar_height = 25.0;
     let bar_space = 2.0;
@@ -122,7 +122,8 @@ pub fn frames_log(debug_state: &mut MutexGuard<DebugState>, commands_state: &mut
         if current_snapshot == i {
             gapi::push_color(commands_state, Color::rgb(0.0, 1.0, 0.0));
             gapi::set_color_uniform(commands_state);
-        } else {
+        }
+        else {
             gapi::push_color(commands_state, Color::rgb(0.2, 0.2, 0.2));
             gapi::set_color_uniform(commands_state);
         }

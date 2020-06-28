@@ -3,8 +3,8 @@ extern crate flatbuffers;
 // use std::slice;
 
 use crate::commands::{ExecutionCommand, RenderCommand, RequestCommand};
-use crate::RawBuffer;
 use crate::memory::MemoryState;
+use crate::RawBuffer;
 
 // use crate::flatbuffers_commands::tech_paws::schemes;
 

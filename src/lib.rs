@@ -12,6 +12,7 @@ pub mod systems;
 
 mod serialize;
 
+use std::ffi::CStr;
 use std::os::raw::c_int;
 use std::slice;
 use std::str;
@@ -131,8 +132,7 @@ pub extern "C" fn frame_start() {
 }
 
 #[no_mangle]
-pub extern "C" fn frame_end() {
-}
+pub extern "C" fn frame_end() {}
 
 #[no_mangle]
 pub extern "C" fn step() {
@@ -228,7 +228,8 @@ fn handle_request_command(application_state: &mut ApplicationState, command: &Re
         } => {
             if let Some(vec2i) = memory.vec2i_data.pop() {
                 set_view_port_size(world, vec2i.x, vec2i.y);
-            } else {
+            }
+            else {
                 log::warn!("data have not been provided to SetViewportSize request command");
             }
 
@@ -246,7 +247,8 @@ fn handle_request_command(application_state: &mut ApplicationState, command: &Re
                     touch_state.touch_start = vec2f;
                     touch_state.touch_current = vec2f;
                 }
-            } else {
+            }
+            else {
                 log::warn!("data have not been provided to OnTouchStart request command");
             }
 
@@ -265,7 +267,8 @@ fn handle_request_command(application_state: &mut ApplicationState, command: &Re
                         touch_state.touch_current = vec2f;
                     }
                 }
-            } else {
+            }
+            else {
                 log::warn!("data have not been provided to OnTouchEnd request command");
             }
 
@@ -284,7 +287,8 @@ fn handle_request_command(application_state: &mut ApplicationState, command: &Re
                         touch_state.touch_current = vec2f;
                     }
                 }
-            } else {
+            }
+            else {
                 log::warn!("data have not been provided to OnTouchMove request command");
             }
 
@@ -371,6 +375,22 @@ pub struct RenderCommands {
 pub struct ExecutionCommands {
     items: *const ExecutionCommand,
     length: c_int,
+}
+
+#[no_mangle]
+pub extern "C" fn c_push_timed_block(name: *const i8, file_name: *const i8, line: u32) -> u64 {
+    unsafe {
+        debug_services::profile::push_timed_block(
+            CStr::from_ptr(name).to_str().unwrap(),
+            CStr::from_ptr(file_name).to_str().unwrap(),
+            line,
+        )
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn c_drop_timed_block(id: u64) {
+    debug_services::profile::drop_timed_block_by_id(id);
 }
 
 #[no_mangle]

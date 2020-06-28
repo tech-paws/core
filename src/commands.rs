@@ -1,6 +1,6 @@
+use crate::RawBuffer;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
-use crate::RawBuffer;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Default, Serialize, Deserialize)]
@@ -223,10 +223,7 @@ pub fn push_execution_command_data(
     commands_state.exec_commands.push(command);
 }
 
-pub fn push_request_command(
-    commands_state: &mut CommandsState,
-    command_type: RequestCommandType,
-) {
+pub fn push_request_command(commands_state: &mut CommandsState, command_type: RequestCommandType) {
     let command = RequestCommand {
         command_type,
         data: CommandData::default(),
