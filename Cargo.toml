@@ -1,13 +1,13 @@
 [package]
-name = "backend"
+name = "tech_paws_core"
 version = "0.1.0"
 authors = ["Andrey Kabylin <andrey@kabylin.ru>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[lib]
-name = "backend"
-crate-type = ["staticlib", "cdylib"]
+# [lib]
+# name = "tech_paws_core"
+# crate-type = ["staticlib", "cdylib"]
 
 [build-dependencies]
 flatc-rust = "0.1.2"

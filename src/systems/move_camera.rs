@@ -25,8 +25,8 @@ pub fn move_camera_system() -> Box<dyn Schedulable> {
                 camera.pos.x = camera_movable.last_pos.x - touch_state.touch_start.x
                     + touch_state.touch_current.x;
 
-                camera.pos.y = camera_movable.last_pos.y + touch_state.touch_start.y
-                    - touch_state.touch_current.y;
+                camera.pos.y = camera_movable.last_pos.y - touch_state.touch_start.y
+                    + touch_state.touch_current.y;
             }
         })
 }
@@ -48,10 +48,11 @@ pub fn render_touch_system() -> Box<dyn Schedulable> {
 
                 let pos = Vec2f {
                     x: -camera_listener.pos.x - 16.0 + touch.touch_current.x,
-                    y: view_port_size.height as f32
-                        - camera_listener.pos.y
-                        - 16.0
-                        - touch.touch_current.y,
+                    // y: view_port_size.height as f32
+                    //     - camera_listener.pos.y
+                    //     - 16.0
+                    //     - touch.touch_current.y,
+                    y: -camera_listener.pos.y - 16.0 + touch.touch_current.y,
                 };
                 let size = Vec2f { x: 32.0, y: 32.0 };
 

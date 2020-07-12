@@ -367,25 +367,27 @@ unsafe impl Sync for RawBuffer {}
 
 #[repr(C)]
 pub struct RenderCommands {
-    items: *const RenderCommand,
-    length: c_int,
+    pub items: *const RenderCommand,
+    pub length: c_int,
 }
 
 #[repr(C)]
 pub struct ExecutionCommands {
-    items: *const ExecutionCommand,
-    length: c_int,
+    pub items: *const ExecutionCommand,
+    pub length: c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn c_push_timed_block(name: *const i8, file_name: *const i8, line: u32) -> u64 {
-    unsafe {
-        debug_services::profile::push_timed_block(
-            CStr::from_ptr(name).to_str().unwrap(),
-            CStr::from_ptr(file_name).to_str().unwrap(),
-            line,
-        )
-    }
+pub unsafe extern "C" fn c_push_timed_block(
+    name: *const i8,
+    file_name: *const i8,
+    line: u32,
+) -> u64 {
+    debug_services::profile::push_timed_block(
+        CStr::from_ptr(name).to_str().unwrap(),
+        CStr::from_ptr(file_name).to_str().unwrap(),
+        line,
+    )
 }
 
 #[no_mangle]
@@ -448,6 +450,102 @@ pub extern "C" fn c_execute_command(data: RawBuffer) {
     debug_services::execute_command(data.data_to_string().as_str()).unwrap();
 }
 
+pub fn push_set_view_port_size_request_command(size: Vec2i) {
+    debug_services::timed_block!("push_set_view_port_size");
+
+    match get_application_state().as_mut() {
+        Some(application_state) => {
+            let mut state = application_state
+                .world
+                .resources
+                .get_mut::<CommandsState>()
+                .expect("failed to get commands state");
+
+            push_request_command_data(
+                &mut state,
+                RequestCommandType::PushVec2i,
+                CommandData::vec2i(size),
+            );
+            push_request_command(&mut state, RequestCommandType::SetViewportSize);
+        }
+        None => {
+            panic!("failed to get application state");
+        }
+    }
+}
+
+pub fn push_on_touch_start_request_command(point: Vec2f) {
+    debug_services::timed_block!("push_set_view_port_size");
+
+    match get_application_state().as_mut() {
+        Some(application_state) => {
+            let mut state = application_state
+                .world
+                .resources
+                .get_mut::<CommandsState>()
+                .expect("failed to get commands state");
+
+            push_request_command_data(
+                &mut state,
+                RequestCommandType::PushVec2f,
+                CommandData::vec2f(point),
+            );
+            push_request_command(&mut state, RequestCommandType::OnTouchStart);
+        }
+        None => {
+            panic!("failed to get application state");
+        }
+    }
+}
+
+pub fn push_on_touch_end_request_command(point: Vec2f) {
+    debug_services::timed_block!("push_set_view_port_size");
+
+    match get_application_state().as_mut() {
+        Some(application_state) => {
+            let mut state = application_state
+                .world
+                .resources
+                .get_mut::<CommandsState>()
+                .expect("failed to get commands state");
+
+            push_request_command_data(
+                &mut state,
+                RequestCommandType::PushVec2f,
+                CommandData::vec2f(point),
+            );
+            push_request_command(&mut state, RequestCommandType::OnTouchEnd);
+        }
+        None => {
+            panic!("failed to get application state");
+        }
+    }
+}
+
+pub fn push_on_touch_move_request_command(point: Vec2f) {
+    debug_services::timed_block!("push_set_view_port_size");
+
+    match get_application_state().as_mut() {
+        Some(application_state) => {
+            let mut state = application_state
+                .world
+                .resources
+                .get_mut::<CommandsState>()
+                .expect("failed to get commands state");
+
+            push_request_command_data(
+                &mut state,
+                RequestCommandType::PushVec2f,
+                CommandData::vec2f(point),
+            );
+            push_request_command(&mut state, RequestCommandType::OnTouchMove);
+        }
+        None => {
+            panic!("failed to get application state");
+        }
+    }
+}
+
 /// # Safety
 ///
 /// TODO: Doc
@@ -499,7 +597,7 @@ pub extern "C" fn get_render_commands(format: SerializeFormat) -> RawBuffer {
 }
 
 #[no_mangle]
-pub extern "C" fn get_exec_commands(format: SerializeFormat) -> RawBuffer {
+pub extern "C" fn get_exec_commands_ser(format: SerializeFormat) -> RawBuffer {
     debug_services::timed_block!("get_exec_commands");
 
     match get_application_state().as_mut() {
