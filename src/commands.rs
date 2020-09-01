@@ -1,6 +1,7 @@
 use crate::RawBuffer;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
+use std::ops;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Default, Serialize, Deserialize)]
@@ -16,6 +17,21 @@ impl Vec2f {
 
     pub fn new(x: f32, y: f32) -> Vec2f {
         Vec2f { x, y }
+    }
+}
+
+impl ops::Add<Vec2f> for Vec2f {
+    type Output = Vec2f;
+
+    fn add(self, rhs: Vec2f) -> Vec2f {
+        Vec2f::new(self.x + rhs.x, self.y + rhs.y)
+    }
+}
+
+impl ops::AddAssign<Vec2f> for Vec2f {
+    fn add_assign(&mut self, other: Self) {
+        self.x += other.x;
+        self.y += other.y;
     }
 }
 
