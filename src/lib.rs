@@ -7,6 +7,7 @@ pub mod commands;
 pub mod components;
 pub mod debug_services;
 pub mod gapi;
+pub mod layout;
 pub mod memory;
 pub mod systems;
 

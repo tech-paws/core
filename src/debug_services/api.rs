@@ -25,7 +25,8 @@ pub fn init() {
 pub fn step(commands_state: &mut CommandsState, view_port: &ViewPortSize) {
     let debug_state = &mut DEBUG_STATE.lock().expect("failed to get debug state");
 
-    render::profile(debug_state, commands_state, view_port);
-    render::frame_time(debug_state, commands_state);
-    render::frames_log(debug_state, commands_state);
+    render::render(debug_state, commands_state, view_port);
+    // render::profile(debug_state, commands_state, view_port);
+    // render::frame_time(debug_state, commands_state);
+    // render::frames_log(debug_state, commands_state);
 }
