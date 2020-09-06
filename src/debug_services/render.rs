@@ -6,15 +6,10 @@ use crate::debug_services::profile;
 use crate::debug_services::state::*;
 use crate::gapi;
 
-struct Context<'a, 'b> {
+struct Context<'a> {
     pos: Vec2f,
-    debug_state: &'a mut MutexGuard<'b, DebugState>,
-    commands_state: &'a mut CommandsState,
     view_port: &'a ViewPortSize,
-}
-
-struct Context2 {
-    pos: Vec2f,
+    commands_state: &'a mut CommandsState,
 }
 
 pub fn render(
@@ -22,57 +17,48 @@ pub fn render(
     commands_state: &mut CommandsState,
     view_port: &ViewPortSize,
 ) {
-    // let mut context = Context {
-    //     pos: Vec2f::new(0.0, 0.0),
-    //     debug_state,
-    //     commands_state,
-    //     view_port,
-    // };
-    let mut context = Context2 {
+    let mut context = Context {
         pos: Vec2f::new(10.0, 10.0),
+        view_port,
+        commands_state,
     };
 
-    render_group_variables(&mut context, commands_state, &debug_state.variables);
-    // let size = render_frame_time(&mut context);
+    let size = render_frame_time(&mut context, &mut debug_state.profile);
 
-    // context.pos.y += size.y;
-    // context.pos.x = 5.;
+    context.pos.y += size.y;
+    context.pos.x = 5.;
 
-    // let size = render_frames_slider(&mut context);
+    render_group_variables(&mut context, &mut debug_state.variables);
 
-    // context.pos.y += size.y;
-    // context.pos.x = 0.0;
+    context.pos.y += 10.;
 
-    // render_profile(&mut context);
+    let size = render_frames_slider(&mut context, &mut debug_state.profile);
+
+    context.pos.y += size.y;
+    context.pos.x = 0.0;
+
+    render_profile(&mut context, &mut debug_state.profile);
 }
 
-fn render_group_variables(
-    context: &mut Context2,
-    commands_state: &mut CommandsState,
-    variable: &GroupVariable,
-) {
-    let text = format!(
-        "{} {}",
-        if variable.is_expanded { "-" } else { "+" },
-        variable.name
-    );
-    gapi::push_string_vec2f(commands_state, &text, context.pos);
+fn render_group_variables(context: &mut Context, variable: &mut GroupVariable) {
+    let text = format!("{}", variable.name);
+    gapi::push_string_vec2f(context.commands_state, &text, context.pos);
 
-    gapi::push_text_shader(commands_state);
-    gapi::push_color(commands_state, Color::rgb(0.0, 0.0, 0.0));
-    gapi::set_color_uniform(commands_state);
-    gapi::draw_text(commands_state);
+    gapi::push_text_shader(context.commands_state);
+    gapi::push_color(context.commands_state, Color::rgb(0.0, 0.0, 0.0));
+    gapi::set_color_uniform(context.commands_state);
+    gapi::draw_text(context.commands_state);
 
     context.pos.x += 20.;
     context.pos.y += 14.;
 
-    for v in variable.variables.iter() {
-        match &v {
+    for mut v in variable.variables.iter_mut() {
+        match &mut v {
             DebugVariable::Bool(variable) => {
-                render_bool_variable(context, commands_state, variable);
+                render_bool_variable(context, variable);
             }
             DebugVariable::Group(group) => {
-                render_group_variables(context, commands_state, group);
+                render_group_variables(context, group);
             }
         };
     }
@@ -80,28 +66,22 @@ fn render_group_variables(
     context.pos.x -= 20.;
 }
 
-fn render_bool_variable(
-    context: &mut Context2,
-    commands_state: &mut CommandsState,
-    variable: &BoolVariable,
-) {
+fn render_bool_variable(context: &mut Context, variable: &BoolVariable) {
     let text = format!("{}: {}", variable.name, variable.value);
-    gapi::push_string_vec2f(commands_state, &text, context.pos);
+    gapi::push_string_vec2f(context.commands_state, &text, context.pos);
 
-    gapi::push_text_shader(commands_state);
-    gapi::push_color(commands_state, Color::rgb(0.0, 0.0, 0.0));
-    gapi::set_color_uniform(commands_state);
-    gapi::draw_text(commands_state);
+    gapi::push_text_shader(context.commands_state);
+    gapi::push_color(context.commands_state, Color::rgb(0.0, 0.0, 0.0));
+    gapi::set_color_uniform(context.commands_state);
+    gapi::draw_text(context.commands_state);
 
     context.pos.y += 14.;
 }
 
-fn render_profile(context: &mut Context) -> Vec2f {
+fn render_profile(context: &mut Context, profile_state: &mut profile::ProfileState) -> Vec2f {
     let mut pos = context.pos;
 
     let line_size = 18.0;
-    let profile_state = &context.debug_state.profile;
-
     let snapshot = &profile_state.performance_counter_log[profile_state.snapshot_counter].records;
 
     let size = Vec2f::new(
@@ -164,7 +144,7 @@ fn render_profile(context: &mut Context) -> Vec2f {
     size
 }
 
-fn render_frames_slider(context: &mut Context) -> Vec2f {
+fn render_frames_slider(context: &mut Context, profile_state: &mut profile::ProfileState) -> Vec2f {
     let mut offset_x = context.pos.x;
     let offset_y = context.pos.y;
     let bar_width = 3.0;
@@ -190,7 +170,7 @@ fn render_frames_slider(context: &mut Context) -> Vec2f {
     gapi::push_vec2f(context.commands_state, Vec2f::new(width, height));
     gapi::draw_quads(context.commands_state);
 
-    let current_snapshot = context.debug_state.profile.snapshot_counter;
+    let current_snapshot = profile_state.snapshot_counter;
 
     for i in 0..profile::PERFORMANCE_COUNTER_LOG_SIZE {
         if current_snapshot == i {
@@ -212,10 +192,10 @@ fn render_frames_slider(context: &mut Context) -> Vec2f {
     Vec2f::new(width, height)
 }
 
-fn render_frame_time(context: &mut Context) -> Vec2f {
+fn render_frame_time(context: &mut Context, profile_state: &mut profile::ProfileState) -> Vec2f {
     let text = format!(
         "{:.2} ms",
-        context.debug_state.profile.frame_elapsed.as_nanos() as f64 / 1_000_000.0
+        profile_state.frame_elapsed.as_nanos() as f64 / 1_000_000.0
     );
     gapi::push_string_xy(context.commands_state, &text, 5.0, 5.0);
 

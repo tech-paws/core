@@ -40,7 +40,7 @@ impl Default for DebugState {
             commands: CommandsState::default(),
             variables: GroupVariable {
                 is_expanded: true,
-                name: "root",
+                name: "Debug menu",
                 variables: vec![
                     DebugVariable::Bool(BoolVariable {
                         name: "Test Variable 1",
