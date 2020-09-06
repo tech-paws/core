@@ -33,6 +33,11 @@ pub fn push_string_xy(commands_state: &mut CommandsState, str: &str, x: f32, y: 
     push_string(commands_state, str);
 }
 
+pub fn push_string_vec2f(commands_state: &mut CommandsState, str: &str, pos: Vec2f) {
+    push_vec2f(commands_state, pos);
+    push_string(commands_state, str);
+}
+
 pub fn push_color_rgb(commands_state: &mut CommandsState, r: f32, g: f32, b: f32) {
     push_color(commands_state, Color::rgb(r, b, g));
 }

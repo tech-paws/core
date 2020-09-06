@@ -3,9 +3,8 @@ use std::sync::MutexGuard;
 use crate::commands::{Color, CommandsState, Vec2f};
 use crate::components::ViewPortSize;
 use crate::debug_services::profile;
-use crate::debug_services::state::DebugState;
+use crate::debug_services::state::*;
 use crate::gapi;
-use crate::layout::StackLayout;
 
 struct Context<'a, 'b> {
     pos: Vec2f,
@@ -14,11 +13,8 @@ struct Context<'a, 'b> {
     view_port: &'a ViewPortSize,
 }
 
-impl<'a, 'b> Context<'a, 'b> {
-    fn apply_stack(&mut self, stack: &StackLayout) {
-        self.pos.x += stack.pos().x;
-        self.pos.y += stack.pos().y;
-    }
+struct Context2 {
+    pos: Vec2f,
 }
 
 pub fn render(
@@ -26,24 +22,78 @@ pub fn render(
     commands_state: &mut CommandsState,
     view_port: &ViewPortSize,
 ) {
-    let mut context = Context {
-        pos: Vec2f::new(0.0, 0.0),
-        debug_state,
-        commands_state,
-        view_port,
+    // let mut context = Context {
+    //     pos: Vec2f::new(0.0, 0.0),
+    //     debug_state,
+    //     commands_state,
+    //     view_port,
+    // };
+    let mut context = Context2 {
+        pos: Vec2f::new(10.0, 10.0),
     };
 
-    let size = render_frame_time(&mut context);
+    render_group_variables(&mut context, commands_state, &debug_state.variables);
+    // let size = render_frame_time(&mut context);
 
-    context.pos.y += size.y;
-    context.pos.x = 5.;
+    // context.pos.y += size.y;
+    // context.pos.x = 5.;
 
-    let size = render_frames_slider(&mut context);
+    // let size = render_frames_slider(&mut context);
 
-    context.pos.y += size.y;
-    context.pos.x = 0.0;
+    // context.pos.y += size.y;
+    // context.pos.x = 0.0;
 
-    render_profile(&mut context);
+    // render_profile(&mut context);
+}
+
+fn render_group_variables(
+    context: &mut Context2,
+    commands_state: &mut CommandsState,
+    variable: &GroupVariable,
+) {
+    let text = format!(
+        "{} {}",
+        if variable.is_expanded { "-" } else { "+" },
+        variable.name
+    );
+    gapi::push_string_vec2f(commands_state, &text, context.pos);
+
+    gapi::push_text_shader(commands_state);
+    gapi::push_color(commands_state, Color::rgb(0.0, 0.0, 0.0));
+    gapi::set_color_uniform(commands_state);
+    gapi::draw_text(commands_state);
+
+    context.pos.x += 20.;
+    context.pos.y += 14.;
+
+    for v in variable.variables.iter() {
+        match &v {
+            DebugVariable::Bool(variable) => {
+                render_bool_variable(context, commands_state, variable);
+            }
+            DebugVariable::Group(group) => {
+                render_group_variables(context, commands_state, group);
+            }
+        };
+    }
+
+    context.pos.x -= 20.;
+}
+
+fn render_bool_variable(
+    context: &mut Context2,
+    commands_state: &mut CommandsState,
+    variable: &BoolVariable,
+) {
+    let text = format!("{}: {}", variable.name, variable.value);
+    gapi::push_string_vec2f(commands_state, &text, context.pos);
+
+    gapi::push_text_shader(commands_state);
+    gapi::push_color(commands_state, Color::rgb(0.0, 0.0, 0.0));
+    gapi::set_color_uniform(commands_state);
+    gapi::draw_text(commands_state);
+
+    context.pos.y += 14.;
 }
 
 fn render_profile(context: &mut Context) -> Vec2f {
@@ -84,9 +134,9 @@ fn render_profile(context: &mut Context) -> Vec2f {
         gapi::push_string_xy(context.commands_state, &cycle.name, pos.x, pos.y);
         pos.x += 250.0;
 
-        let text = format!("{}:{}", cycle.file_name, cycle.line);
-        gapi::push_string_xy(context.commands_state, &text, pos.x, pos.y);
-        pos.x += 250.0;
+        // let text = format!("{}:{}", cycle.file_name, cycle.line);
+        // gapi::push_string_xy(context.commands_state, &text, pos.x, pos.y);
+        // pos.x += 250.0;
 
         let text = format!("{}h", cycle.sum_hits / cycle.hits);
         gapi::push_string_xy(context.commands_state, &text, pos.x, pos.y);
@@ -146,7 +196,8 @@ fn render_frames_slider(context: &mut Context) -> Vec2f {
         if current_snapshot == i {
             gapi::push_color(context.commands_state, Color::rgb(0.0, 1.0, 0.0));
             gapi::set_color_uniform(context.commands_state);
-        } else {
+        }
+        else {
             gapi::push_color(context.commands_state, Color::rgb(0.2, 0.2, 0.2));
             gapi::set_color_uniform(context.commands_state);
         }

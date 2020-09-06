@@ -62,8 +62,8 @@ pub extern "C" fn init_world() {
         (),
         vec![(
             GridComponent {
-                color: Color::rgba(0.0, 0.0, 0.0, 0.2),
-                step: 32,
+                color: Color::rgba(0.0, 0.0, 0.0, 0.1),
+                step: 16,
             },
             Camera2DPositionListener::new(0),
         )],
@@ -73,7 +73,7 @@ pub extern "C" fn init_world() {
         (),
         vec![(WorkAreaComponent {
             title: String::from("Hello world!"),
-            color: Color::rgb(0.0, 0.0, 1.0),
+            color: Color::rgba(0.0, 0.0, 1.0, 0.3),
             size: Vec2f::new(640.0, 480.0),
         },)],
     );
