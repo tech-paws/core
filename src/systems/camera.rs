@@ -17,17 +17,19 @@ pub fn camera_system() -> Box<dyn Schedulable> {
 
             let memory_state = &mut memory::get_memory_state();
             let mut pos = memory::frame_alloc_vec::<Vec2f>(memory_state);
+            pos.resize(gapi::CAMERA_COUNT, Vec2f::zero());
 
             for (camera,) in q1.iter(&mut world) {
-                pos.push(Vec2f::new(
+                pos[camera.id] = Vec2f::new(
                     view_port_size.width as f32 / 2.0 + camera.pos.x,
                     view_port_size.height as f32 / 2.0 + camera.pos.y,
-                ));
-                gapi::update_camera_position(commands_state, pos[camera.tag]);
+                );
+                gapi::set_camera(commands_state, camera.id);
+                gapi::update_camera_position(commands_state, camera.id, pos[camera.id]);
             }
 
             for (mut camera_listener,) in q2.iter(&mut world) {
-                camera_listener.pos = pos[camera_listener.tag];
+                camera_listener.pos = pos[camera_listener.id];
             }
         })
 }

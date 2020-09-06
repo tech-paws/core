@@ -17,6 +17,8 @@ pub fn render(
     commands_state: &mut CommandsState,
     view_port: &ViewPortSize,
 ) {
+    gapi::set_camera(commands_state, gapi::CAMERA_UI);
+
     let mut context = Context {
         pos: Vec2f::new(10.0, 10.0),
         view_port,
@@ -41,13 +43,19 @@ pub fn render(
 }
 
 fn render_group_variables(context: &mut Context, variable: &mut GroupVariable) {
-    let text = format!("{}", variable.name);
-    gapi::push_string_vec2f(context.commands_state, &text, context.pos);
+    gapi::push_string_vec2f(context.commands_state, variable.name, context.pos);
 
     gapi::push_text_shader(context.commands_state);
     gapi::push_color(context.commands_state, Color::rgb(0.0, 0.0, 0.0));
     gapi::set_color_uniform(context.commands_state);
     gapi::draw_text(context.commands_state);
+
+    gapi::push_quad_lines(
+        context.commands_state,
+        Vec2f::new(0., 0.),
+        Vec2f::new(100.0, 12.0),
+    );
+    gapi::draw_lines(context.commands_state);
 
     context.pos.x += 20.;
     context.pos.y += 14.;

@@ -19,6 +19,7 @@ pub fn work_area_system() -> Box<dyn Schedulable> {
                 gapi::push_quad_lines(commands_state, Vec2f::zero(), work_area.size);
             }
 
+            gapi::set_camera(commands_state, gapi::CAMERA_ORTHO);
             gapi::draw_lines(commands_state);
         })
 }

@@ -74,6 +74,7 @@ impl Color {
 #[repr(C)]
 #[derive(Debug, Clone, Default)]
 pub struct CommandData {
+    pub int32: i32,
     pub vec2f: Vec2f,
     pub vec2i: Vec2i,
     pub color: Color,
@@ -81,8 +82,19 @@ pub struct CommandData {
 }
 
 impl CommandData {
+    pub fn int32(data: i32) -> CommandData {
+        CommandData {
+            int32: data,
+            vec2f: Vec2f::default(),
+            vec2i: Vec2i::default(),
+            color: Color::default(),
+            string: RawBuffer::default(),
+        }
+    }
+
     pub fn vec2f(data: Vec2f) -> CommandData {
         CommandData {
+            int32: i32::default(),
             vec2f: data,
             vec2i: Vec2i::default(),
             color: Color::default(),
@@ -92,6 +104,7 @@ impl CommandData {
 
     pub fn vec2i(data: Vec2i) -> CommandData {
         CommandData {
+            int32: i32::default(),
             vec2f: Vec2f::default(),
             vec2i: data,
             color: Color::default(),
@@ -101,6 +114,7 @@ impl CommandData {
 
     pub fn color(data: Color) -> CommandData {
         CommandData {
+            int32: i32::default(),
             vec2f: Vec2f::default(),
             vec2i: Vec2i::default(),
             color: data,
@@ -110,6 +124,7 @@ impl CommandData {
 
     pub fn string(data: &str) -> CommandData {
         CommandData {
+            int32: i32::default(),
             vec2f: Vec2f::default(),
             vec2i: Vec2i::default(),
             color: Color::default(),
@@ -119,6 +134,7 @@ impl CommandData {
 
     pub fn string_bytes(data: &[u8]) -> CommandData {
         CommandData {
+            int32: i32::default(),
             vec2f: Vec2f::default(),
             vec2i: Vec2i::default(),
             color: Color::default(),
@@ -127,12 +143,14 @@ impl CommandData {
     }
 }
 
-// last: 9
+// last: 11
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum RenderCommandType {
     PushColor = 0,
     PushVec2f = 1,
+    PushInt32 = 11,
+    SetCamera = 10,
     SetColorUniform = 2,
     PushColorShader = 3,
     PushTextShader = 9,
@@ -155,11 +173,12 @@ pub enum RequestCommandType {
     OnTouchMove = 4,
 }
 
-// last: 1
+// last: 2
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum ExecutionCommandType {
     PushVec2f = 0,
+    PushInt32 = 2,
     UpdateCameraPosition = 1,
 }
 

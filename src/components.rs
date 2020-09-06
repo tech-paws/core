@@ -21,7 +21,7 @@ pub struct WorkAreaComponent {
 
 #[derive(Default, Debug)]
 pub struct Camera2D {
-    pub tag: usize,
+    pub id: usize,
     pub pos: Vec2f,
 }
 
@@ -32,7 +32,7 @@ pub struct CameraMovable2D {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Camera2DPositionListener {
-    pub tag: usize,
+    pub id: usize,
     pub pos: Vec2f,
 }
 
@@ -40,9 +40,9 @@ pub struct Camera2DPositionListener {
 pub struct Actions;
 
 impl Camera2DPositionListener {
-    pub fn new(tag: usize) -> Camera2DPositionListener {
+    pub fn new(id: usize) -> Camera2DPositionListener {
         Camera2DPositionListener {
-            tag,
+            id,
             pos: Vec2f::zero(),
         }
     }

@@ -27,3 +27,4 @@ bumpalo = { version = "3.3.0", features = ["collections"] }
 phf = "0.8"
 fxhash = "0.2.1"
 regex = "1"
+futures = "0.3"

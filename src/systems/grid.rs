@@ -21,6 +21,7 @@ pub fn grid_system() -> Box<dyn Schedulable> {
                 push_lines(commands_state, &grid, &view_port_size, &camera);
             }
 
+            gapi::set_camera(commands_state, gapi::CAMERA_ORTHO);
             gapi::draw_lines(commands_state);
         })
 }

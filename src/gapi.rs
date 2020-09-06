@@ -1,6 +1,10 @@
 use crate::commands::*;
 use crate::memory;
 
+pub const CAMERA_UI: usize = 0;
+pub const CAMERA_ORTHO: usize = 1;
+pub const CAMERA_COUNT: usize = 2;
+
 pub fn push_color_shader(commands_state: &mut CommandsState) {
     push_render_command(commands_state, RenderCommandType::PushColorShader);
 }
@@ -50,6 +54,15 @@ pub fn set_color_uniform(commands_state: &mut CommandsState) {
     push_render_command(commands_state, RenderCommandType::SetColorUniform);
 }
 
+pub fn set_camera(commands_state: &mut CommandsState, camera_id: usize) {
+    push_render_command_data(
+        commands_state,
+        RenderCommandType::PushInt32,
+        CommandData::int32(camera_id as i32),
+    );
+    push_render_command(commands_state, RenderCommandType::SetCamera);
+}
+
 pub fn draw_lines(commands_state: &mut CommandsState) {
     push_render_command(commands_state, RenderCommandType::DrawLines);
 }
@@ -92,7 +105,12 @@ pub fn push_quad_lines(commands_state: &mut CommandsState, pos: Vec2f, size: Vec
     push_vec2f_xy(commands_state, pos.x, pos.y);
 }
 
-pub fn update_camera_position(commands_state: &mut CommandsState, pos: Vec2f) {
+pub fn update_camera_position(commands_state: &mut CommandsState, id: usize, pos: Vec2f) {
+    push_execution_command_data(
+        commands_state,
+        ExecutionCommandType::PushInt32,
+        CommandData::int32(id as i32),
+    );
     push_execution_command_data(
         commands_state,
         ExecutionCommandType::PushVec2f,

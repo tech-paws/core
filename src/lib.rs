@@ -65,7 +65,7 @@ pub extern "C" fn init_world() {
                 color: Color::rgba(0.0, 0.0, 0.0, 0.1),
                 step: 16,
             },
-            Camera2DPositionListener::new(0),
+            Camera2DPositionListener::new(gapi::CAMERA_ORTHO),
         )],
     );
 
@@ -82,12 +82,12 @@ pub extern "C" fn init_world() {
         (),
         vec![(
             Camera2D {
-                tag: 0,
+                id: gapi::CAMERA_ORTHO,
                 pos: Vec2f::new(-320.0, -240.0),
             },
             CameraMovable2D::default(),
             TouchState::default(),
-            Camera2DPositionListener::new(0),
+            Camera2DPositionListener::new(gapi::CAMERA_ORTHO),
         )],
     );
 

@@ -37,6 +37,8 @@ pub fn render_touch_system() -> Box<dyn Schedulable> {
         .read_resource::<ViewPortSize>()
         .with_query(<(Read<TouchState>, Read<Camera2DPositionListener>)>::query())
         .build(|_, mut world, (commands_state, _), query| {
+            gapi::set_camera(commands_state, gapi::CAMERA_ORTHO);
+
             gapi::push_color_shader(commands_state);
             gapi::push_color_rgb(commands_state, 1.0, 0.0, 0.0);
             gapi::set_color_uniform(commands_state);
