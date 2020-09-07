@@ -5,7 +5,7 @@ use crate::gapi;
 
 use legion::prelude::*;
 
-pub fn work_area_system() -> Box<dyn Schedulable> {
+pub fn render_work_area_system() -> Box<dyn Schedulable> {
     SystemBuilder::new("work_area_system")
         .write_resource::<CommandsState>()
         .with_query(<(Read<WorkAreaComponent>,)>::query())

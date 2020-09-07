@@ -5,15 +5,18 @@ use crate::components::ViewPortSize;
 use crate::debug_services::profile;
 use crate::debug_services::state::*;
 use crate::gapi;
+use crate::render_state::RenderState;
 
 struct Context<'a> {
     pos: Vec2f,
     view_port: &'a ViewPortSize,
     commands_state: &'a mut CommandsState,
+    render_state: &'a mut RenderState,
 }
 
 pub fn render(
     debug_state: &mut MutexGuard<DebugState>,
+    render_state: &mut MutexGuard<RenderState>,
     commands_state: &mut CommandsState,
     view_port: &ViewPortSize,
 ) {
@@ -23,27 +26,33 @@ pub fn render(
         pos: Vec2f::new(10.0, 10.0),
         view_port,
         commands_state,
+        render_state,
     };
 
-    let size = render_frame_time(&mut context, &mut debug_state.profile);
+    let size = render_frame_time(&mut context, &debug_state.profile);
 
     context.pos.y += size.y;
     context.pos.x = 5.;
 
-    render_group_variables(&mut context, &mut debug_state.variables);
+    render_group_variables(&mut context, &debug_state.variables);
 
     context.pos.y += 10.;
 
-    let size = render_frames_slider(&mut context, &mut debug_state.profile);
+    let size = render_frames_slider(&mut context, &debug_state.profile);
 
     context.pos.y += size.y;
     context.pos.x = 0.0;
 
-    render_profile(&mut context, &mut debug_state.profile);
+    render_profile(&mut context, &debug_state.profile);
 }
 
-fn render_group_variables(context: &mut Context, variable: &mut GroupVariable) {
-    gapi::push_string_vec2f(context.commands_state, variable.name, context.pos);
+fn render_group_variables(context: &mut Context, variable: &GroupVariable) {
+    let text_size = gapi::push_string_vec2f(
+        context.commands_state,
+        context.render_state,
+        variable.name,
+        context.pos,
+    );
 
     gapi::push_text_shader(context.commands_state);
     gapi::push_color(context.commands_state, Color::rgb(0.0, 0.0, 0.0));
@@ -52,16 +61,16 @@ fn render_group_variables(context: &mut Context, variable: &mut GroupVariable) {
 
     gapi::push_quad_lines(
         context.commands_state,
-        Vec2f::new(0., 0.),
-        Vec2f::new(100.0, 12.0),
+        context.pos,
+        text_size,
     );
     gapi::draw_lines(context.commands_state);
 
     context.pos.x += 20.;
-    context.pos.y += 14.;
+    context.pos.y += text_size.y;
 
-    for mut v in variable.variables.iter_mut() {
-        match &mut v {
+    for v in variable.variables.iter() {
+        match &v {
             DebugVariable::Bool(variable) => {
                 render_bool_variable(context, variable);
             }
@@ -76,17 +85,29 @@ fn render_group_variables(context: &mut Context, variable: &mut GroupVariable) {
 
 fn render_bool_variable(context: &mut Context, variable: &BoolVariable) {
     let text = format!("{}: {}", variable.name, variable.value);
-    gapi::push_string_vec2f(context.commands_state, &text, context.pos);
+    let text_size = gapi::push_string_vec2f(
+        context.commands_state,
+        context.render_state,
+        &text,
+        context.pos,
+    );
 
     gapi::push_text_shader(context.commands_state);
     gapi::push_color(context.commands_state, Color::rgb(0.0, 0.0, 0.0));
     gapi::set_color_uniform(context.commands_state);
     gapi::draw_text(context.commands_state);
 
-    context.pos.y += 14.;
+    gapi::push_quad_lines(
+        context.commands_state,
+        context.pos,
+        text_size,
+    );
+    gapi::draw_lines(context.commands_state);
+
+    context.pos.y += text_size.y;
 }
 
-fn render_profile(context: &mut Context, profile_state: &mut profile::ProfileState) -> Vec2f {
+fn render_profile(context: &mut Context, profile_state: &profile::ProfileState) -> Vec2f {
     let mut pos = context.pos;
 
     let line_size = 18.0;
@@ -112,14 +133,32 @@ fn render_profile(context: &mut Context, profile_state: &mut profile::ProfileSta
         pos.x = context.pos.x + 10.0;
 
         let text = format!("{:?}", cycle.thread_id);
-        gapi::push_string_xy(context.commands_state, &text, pos.x, pos.y);
+        gapi::push_string_xy(
+            context.commands_state,
+            context.render_state,
+            &text,
+            pos.x,
+            pos.y,
+        );
         pos.x += 100.0;
 
         let text = format!("{:.2}%", cycle.percent);
-        gapi::push_string_xy(context.commands_state, &text, pos.x, pos.y);
+        gapi::push_string_xy(
+            context.commands_state,
+            context.render_state,
+            &text,
+            pos.x,
+            pos.y,
+        );
         pos.x += 100.0;
 
-        gapi::push_string_xy(context.commands_state, &cycle.name, pos.x, pos.y);
+        gapi::push_string_xy(
+            context.commands_state,
+            context.render_state,
+            &cycle.name,
+            pos.x,
+            pos.y,
+        );
         pos.x += 250.0;
 
         // let text = format!("{}:{}", cycle.file_name, cycle.line);
@@ -127,18 +166,18 @@ fn render_profile(context: &mut Context, profile_state: &mut profile::ProfileSta
         // pos.x += 250.0;
 
         let text = format!("{}h", cycle.sum_hits / cycle.hits);
-        gapi::push_string_xy(context.commands_state, &text, pos.x, pos.y);
+        gapi::push_string_xy(context.commands_state, context.render_state, &text, pos.x, pos.y);
         pos.x += 50.0;
 
         let text = format!("{:?}", cycle.sum_elapsed / cycle.hits);
-        gapi::push_string_xy(context.commands_state, &text, pos.x, pos.y);
+        gapi::push_string_xy(context.commands_state, context.render_state, &text, pos.x, pos.y);
         pos.x += 100.0;
 
         let text = format!(
             "{:?} ns/h",
             cycle.sum_hits_over_elapsed / cycle.hits as u128
         );
-        gapi::push_string_xy(context.commands_state, &text, pos.x, pos.y);
+        gapi::push_string_xy(context.commands_state, context.render_state, &text, pos.x, pos.y);
 
         pos.y += line_size;
     }
@@ -152,7 +191,7 @@ fn render_profile(context: &mut Context, profile_state: &mut profile::ProfileSta
     size
 }
 
-fn render_frames_slider(context: &mut Context, profile_state: &mut profile::ProfileState) -> Vec2f {
+fn render_frames_slider(context: &mut Context, profile_state: &profile::ProfileState) -> Vec2f {
     let mut offset_x = context.pos.x;
     let offset_y = context.pos.y;
     let bar_width = 3.0;
@@ -182,7 +221,7 @@ fn render_frames_slider(context: &mut Context, profile_state: &mut profile::Prof
 
     for i in 0..profile::PERFORMANCE_COUNTER_LOG_SIZE {
         if current_snapshot == i {
-            gapi::push_color(context.commands_state, Color::rgb(0.0, 1.0, 0.0));
+            gapi::push_color(context.commands_state, Color::rgb(1.0, 1.0, 1.0));
             gapi::set_color_uniform(context.commands_state);
         }
         else {
@@ -200,12 +239,12 @@ fn render_frames_slider(context: &mut Context, profile_state: &mut profile::Prof
     Vec2f::new(width, height)
 }
 
-fn render_frame_time(context: &mut Context, profile_state: &mut profile::ProfileState) -> Vec2f {
+fn render_frame_time(context: &mut Context, profile_state: &profile::ProfileState) -> Vec2f {
     let text = format!(
         "{:.2} ms",
         profile_state.frame_elapsed.as_nanos() as f64 / 1_000_000.0
     );
-    gapi::push_string_xy(context.commands_state, &text, 5.0, 5.0);
+    gapi::push_string_xy(context.commands_state, context.render_state, &text, 5.0, 5.0);
 
     gapi::push_text_shader(context.commands_state);
     gapi::push_color(context.commands_state, Color::rgb(0.0, 0.0, 0.0));

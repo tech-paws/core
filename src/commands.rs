@@ -3,6 +3,11 @@ use serde::{Deserialize, Serialize};
 use std::default::Default;
 use std::ops;
 
+pub struct Rect {
+    pub pos: Vec2f,
+    pub size: Vec2f,
+}
+
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Default, Serialize, Deserialize)]
 pub struct Vec2f {

@@ -5,7 +5,7 @@ use crate::gapi;
 
 use legion::prelude::*;
 
-pub fn grid_system() -> Box<dyn Schedulable> {
+pub fn render_grid_system() -> Box<dyn Schedulable> {
     SystemBuilder::new("grid_system")
         .write_resource::<CommandsState>()
         .read_resource::<ViewPortSize>()

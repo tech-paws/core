@@ -1,5 +1,6 @@
 use crate::commands::*;
 use crate::memory;
+use crate::render_state::RenderState;
 
 pub const CAMERA_UI: usize = 0;
 pub const CAMERA_ORTHO: usize = 1;
@@ -21,7 +22,12 @@ pub fn push_color(commands_state: &mut CommandsState, color: Color) {
     );
 }
 
-pub fn push_string(commands_state: &mut CommandsState, str: &str) {
+/// Returns string size
+pub fn push_string(
+    commands_state: &mut CommandsState,
+    render_state: &mut RenderState,
+    str: &str,
+) -> Vec2f {
     let memory_state = memory::get_memory_state();
     let data = memory_state.frame_memory.alloc_slice_copy(str.as_bytes());
 
@@ -30,16 +36,30 @@ pub fn push_string(commands_state: &mut CommandsState, str: &str) {
         RenderCommandType::PushString,
         CommandData::string_bytes(data),
     );
+
+    render_state.next_text_size()
 }
 
-pub fn push_string_xy(commands_state: &mut CommandsState, str: &str, x: f32, y: f32) {
+pub fn push_string_xy(
+    commands_state: &mut CommandsState,
+    render_state: &mut RenderState,
+    str: &str,
+    x: f32,
+    y: f32,
+) -> Vec2f {
     push_vec2f_xy(commands_state, x, y);
-    push_string(commands_state, str);
+    push_string(commands_state, render_state, str)
 }
 
-pub fn push_string_vec2f(commands_state: &mut CommandsState, str: &str, pos: Vec2f) {
+/// Returns size of string
+pub fn push_string_vec2f(
+    commands_state: &mut CommandsState,
+    render_state: &mut RenderState,
+    str: &str,
+    pos: Vec2f,
+) -> Vec2f {
     push_vec2f(commands_state, pos);
-    push_string(commands_state, str);
+    push_string(commands_state, render_state, str)
 }
 
 pub fn push_color_rgb(commands_state: &mut CommandsState, r: f32, g: f32, b: f32) {

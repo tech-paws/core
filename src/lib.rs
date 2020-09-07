@@ -7,6 +7,7 @@ pub mod commands;
 pub mod components;
 pub mod debug_services;
 pub mod gapi;
+pub mod render_state;
 pub mod layout;
 pub mod memory;
 pub mod systems;
@@ -21,14 +22,15 @@ use std::sync::{Mutex, MutexGuard};
 
 use lazy_static::lazy_static;
 
+use render_state::RENDER_STATE;
 use commands::*;
 use components::*;
 use legion::prelude::*;
 use serialize::*;
 use systems::camera::camera_system;
-use systems::grid::grid_system;
+use systems::grid::render_grid_system;
 use systems::move_camera::{move_camera_system, render_touch_system};
-use systems::work_area::work_area_system;
+use systems::work_area::render_work_area_system;
 
 struct ApplicationState {
     _universe: Universe,
@@ -40,8 +42,9 @@ pub enum SerializeFormat {
     Json = 0,
 }
 
-static mut SCHEDULER: Option<Schedule> = None;
-static mut SCHEDULER_2: Option<Schedule> = None;
+static mut SCHEDULER_PROGRESS: Option<Schedule> = None;
+static mut SCHEDULER_RENDER_PASS1: Option<Schedule> = None;
+static mut SCHEDULER_RENDER_PASS2: Option<Schedule> = None;
 
 lazy_static! {
     static ref APPLICATION_STATE: Mutex<Option<ApplicationState>> = Mutex::new(None);
@@ -92,19 +95,25 @@ pub extern "C" fn init_world() {
     );
 
     unsafe {
-        SCHEDULER = Some(
+        SCHEDULER_PROGRESS = Some(
             Schedule::builder()
                 .add_system(camera_system())
-                .add_system(grid_system())
-                .add_system(work_area_system())
+                .add_system(move_camera_system())
                 .flush()
                 .build(),
         );
 
-        SCHEDULER_2 = Some(
+        SCHEDULER_RENDER_PASS1 = Some(
             Schedule::builder()
-                .add_system(move_camera_system())
+                .flush()
+                .build(),
+        );
+
+        SCHEDULER_RENDER_PASS2 = Some(
+            Schedule::builder()
                 .add_system(render_touch_system())
+                .add_system(render_grid_system())
+                .add_system(render_work_area_system())
                 .flush()
                 .build(),
         );
@@ -133,31 +142,52 @@ pub extern "C" fn frame_start() {
 }
 
 #[no_mangle]
-pub extern "C" fn frame_end() {}
+pub extern "C" fn frame_end() {
+    debug_services::debug_frame_end();
+}
+
+#[no_mangle]
+pub extern "C" fn flush() {
+    match get_application_state().as_mut() {
+        Some(state) => {
+            state_flush(state);
+            delete_action_entities(&mut state.world);
+        }
+        None => {
+            panic!("failed to get application state");
+        }
+    }
+}
 
 #[no_mangle]
 pub extern "C" fn step() {
     match get_application_state().as_mut() {
         Some(state) => {
             handle_request_commands(state);
-            flush(state);
 
             unsafe {
-                SCHEDULER
+                SCHEDULER_PROGRESS
                     .as_mut()
                     .expect("failed to get scheduler")
                     .execute(&mut state.world);
             }
+        }
+        None => {
+            panic!("failed to get application state");
+        }
+    }
+}
 
+#[no_mangle]
+pub extern "C" fn render_pass1() {
+    match get_application_state().as_mut() {
+        Some(state) => {
             unsafe {
-                SCHEDULER_2
+                SCHEDULER_RENDER_PASS1
                     .as_mut()
                     .expect("failed to get scheduler")
                     .execute(&mut state.world);
             }
-
-            delete_action_entities(&mut state.world);
-            debug_services::debug_frame_end();
 
             let commands_state = &mut state
                 .world
@@ -171,7 +201,38 @@ pub extern "C" fn step() {
                 .get::<ViewPortSize>()
                 .expect("failed to get commands state");
 
-            debug_services::step(commands_state, &view_port);
+            debug_services::render_pass(commands_state, &view_port);
+        }
+        None => {
+            panic!("failed to get application state");
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn render_pass2() {
+    match get_application_state().as_mut() {
+        Some(state) => {
+            unsafe {
+                SCHEDULER_RENDER_PASS2
+                    .as_mut()
+                    .expect("failed to get scheduler")
+                    .execute(&mut state.world);
+            }
+
+            let commands_state = &mut state
+                .world
+                .resources
+                .get_mut::<CommandsState>()
+                .expect("failed to get commands state");
+
+            let view_port = state
+                .world
+                .resources
+                .get::<ViewPortSize>()
+                .expect("failed to get commands state");
+
+            debug_services::render_pass(commands_state, &view_port);
         }
         None => {
             panic!("failed to get application state");
@@ -298,7 +359,7 @@ fn handle_request_command(application_state: &mut ApplicationState, command: &Re
     }
 }
 
-fn flush(application_state: &mut ApplicationState) {
+fn state_flush(application_state: &mut ApplicationState) {
     let mut state = application_state
         .world
         .resources
@@ -310,6 +371,14 @@ fn flush(application_state: &mut ApplicationState) {
     state.render_commands.clear();
     state.exec_commands.clear();
     state.request_commands.clear();
+
+    let render_state = &mut RENDER_STATE.lock().expect("failed to get render state");
+    render_state.bump_cursor();
+}
+
+pub fn render_state_flush() {
+    let render_state = &mut RENDER_STATE.lock().expect("failed to get render state");
+    render_state.clear();
 }
 
 #[repr(C)]
@@ -473,6 +542,14 @@ pub fn push_set_view_port_size_request_command(size: Vec2i) {
             panic!("failed to get application state");
         }
     }
+}
+
+// TODO: Use commands
+pub fn push_text_size(size: Vec2f) {
+    debug_services::timed_block!("push_text_size");
+
+    let state = &mut RENDER_STATE.lock().expect("failed to get render state");
+    state.push(size);
 }
 
 pub fn push_on_touch_start_request_command(point: Vec2f) {
