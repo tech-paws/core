@@ -3,11 +3,6 @@ use serde::{Deserialize, Serialize};
 use std::default::Default;
 use std::ops;
 
-pub struct Rect {
-    pub pos: Vec2f,
-    pub size: Vec2f,
-}
-
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Default, Serialize, Deserialize)]
 pub struct Vec2f {
@@ -16,11 +11,9 @@ pub struct Vec2f {
 }
 
 impl Vec2f {
-    pub fn zero() -> Vec2f {
-        Vec2f { x: 0.0, y: 0.0 }
-    }
+    pub const ZERO: Vec2f = Vec2f::new(0., 0.);
 
-    pub fn new(x: f32, y: f32) -> Vec2f {
+    pub const fn new(x: f32, y: f32) -> Vec2f {
         Vec2f { x, y }
     }
 }
@@ -54,6 +47,21 @@ impl Vec2i {
 
     pub fn new(x: i32, y: i32) -> Vec2i {
         Vec2i { x, y }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Default, Serialize, Deserialize)]
+pub struct Rect {
+    pub pos: Vec2f,
+    pub size: Vec2f,
+}
+
+impl Rect {
+    pub const ZERO: Rect = Rect::new(Vec2f::ZERO, Vec2f::ZERO);
+
+    pub const fn new(pos: Vec2f, size: Vec2f) -> Rect {
+        Rect { pos, size }
     }
 }
 

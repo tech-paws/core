@@ -24,7 +24,7 @@ impl RenderState {
         self.offset += 1;
 
         if self.offset - 1 >= self.text_sizes.len() {
-            Vec2f::zero()
+            Vec2f::ZERO
         }
         else {
             self.text_sizes[self.offset - 1]

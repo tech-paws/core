@@ -196,7 +196,7 @@ pub fn drop_timed_block(timed_block: &TimedBlock, debug_state: &mut MutexGuard<D
     let frame_counter = profile_state.frame_counter;
     let records = &mut profile_state.performance_counter_states[frame_counter].records;
 
-    // NOTE(Andrey): Right now this method is faster than Map
+    // NOTE(sysint64): Right now this method is faster than Map
     for (i, c) in records.iter().enumerate() {
         if c.name == timed_block.name
             && c.file_name == timed_block.file_name

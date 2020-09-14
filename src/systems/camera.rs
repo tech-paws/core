@@ -17,7 +17,7 @@ pub fn camera_system() -> Box<dyn Schedulable> {
 
             let memory_state = &mut memory::get_memory_state();
             let mut pos = memory::frame_alloc_vec::<Vec2f>(memory_state);
-            pos.resize(gapi::CAMERA_COUNT, Vec2f::zero());
+            pos.resize(gapi::CAMERA_COUNT, Vec2f::ZERO);
 
             for (camera,) in q1.iter(&mut world) {
                 pos[camera.id] = Vec2f::new(

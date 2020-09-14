@@ -1,6 +1,6 @@
 use std::sync::MutexGuard;
 
-use crate::commands::{Color, CommandsState, Vec2f};
+use crate::commands::{Color, CommandsState, Rect, Vec2f};
 use crate::components::ViewPortSize;
 use crate::debug_services::profile;
 use crate::debug_services::state::*;
@@ -34,7 +34,7 @@ pub fn render(
     context.pos.y += size.y;
     context.pos.x = 5.;
 
-    render_group_variables(&mut context, &debug_state.variables);
+    render_group_variables(&mut context, &mut debug_state.variables);
 
     context.pos.y += 10.;
 
@@ -46,7 +46,7 @@ pub fn render(
     render_profile(&mut context, &debug_state.profile);
 }
 
-fn render_group_variables(context: &mut Context, variable: &GroupVariable) {
+fn render_group_variables(context: &mut Context, variable: &mut GroupVariable) {
     let text_size = gapi::push_string_vec2f(
         context.commands_state,
         context.render_state,
@@ -54,23 +54,33 @@ fn render_group_variables(context: &mut Context, variable: &GroupVariable) {
         context.pos,
     );
 
+    variable.bounds = Rect::new(context.pos, text_size);
+
     gapi::push_text_shader(context.commands_state);
-    gapi::push_color(context.commands_state, Color::rgb(0.0, 0.0, 0.0));
+
+    if variable.is_hot {
+        gapi::push_color(context.commands_state, Color::rgb(0.0, 0.5, 0.0));
+    }
+    else {
+        gapi::push_color(context.commands_state, Color::rgb(0.0, 0.0, 0.0));
+    }
+
     gapi::set_color_uniform(context.commands_state);
     gapi::draw_text(context.commands_state);
 
-    gapi::push_quad_lines(
-        context.commands_state,
-        context.pos,
-        text_size,
-    );
+    gapi::push_quad_lines(context.commands_state, context.pos, text_size);
     gapi::draw_lines(context.commands_state);
 
-    context.pos.x += 20.;
     context.pos.y += text_size.y;
 
-    for v in variable.variables.iter() {
-        match &v {
+    if !variable.is_expanded {
+        return;
+    }
+
+    context.pos.x += 20.;
+
+    for mut v in variable.variables.iter_mut() {
+        match &mut v {
             DebugVariable::Bool(variable) => {
                 render_bool_variable(context, variable);
             }
@@ -83,8 +93,30 @@ fn render_group_variables(context: &mut Context, variable: &GroupVariable) {
     context.pos.x -= 20.;
 }
 
-fn render_bool_variable(context: &mut Context, variable: &BoolVariable) {
+fn render_bool_variable(context: &mut Context, variable: &mut BoolVariable) {
     let text = format!("{}: {}", variable.name, variable.value);
+
+    // Draw text shadow
+    gapi::push_string_vec2f(
+        context.commands_state,
+        context.render_state,
+        &text,
+        context.pos + Vec2f::new(-1., 1.),
+    );
+
+    gapi::push_color(context.commands_state, Color::rgb(1.0, 1.0, 1.0));
+    gapi::push_text_shader(context.commands_state);
+    gapi::set_color_uniform(context.commands_state);
+    gapi::draw_text(context.commands_state);
+
+    // Draw text
+    if variable.is_hot {
+        gapi::push_color(context.commands_state, Color::rgb(0.0, 0.5, 0.0));
+    }
+    else {
+        gapi::push_color(context.commands_state, Color::rgb(0.0, 0.0, 0.0));
+    }
+
     let text_size = gapi::push_string_vec2f(
         context.commands_state,
         context.render_state,
@@ -92,16 +124,13 @@ fn render_bool_variable(context: &mut Context, variable: &BoolVariable) {
         context.pos,
     );
 
+    variable.bounds = Rect::new(context.pos, text_size);
+
     gapi::push_text_shader(context.commands_state);
-    gapi::push_color(context.commands_state, Color::rgb(0.0, 0.0, 0.0));
     gapi::set_color_uniform(context.commands_state);
     gapi::draw_text(context.commands_state);
 
-    gapi::push_quad_lines(
-        context.commands_state,
-        context.pos,
-        text_size,
-    );
+    gapi::push_quad_lines(context.commands_state, context.pos, text_size);
     gapi::draw_lines(context.commands_state);
 
     context.pos.y += text_size.y;
@@ -166,18 +195,36 @@ fn render_profile(context: &mut Context, profile_state: &profile::ProfileState) 
         // pos.x += 250.0;
 
         let text = format!("{}h", cycle.sum_hits / cycle.hits);
-        gapi::push_string_xy(context.commands_state, context.render_state, &text, pos.x, pos.y);
+        gapi::push_string_xy(
+            context.commands_state,
+            context.render_state,
+            &text,
+            pos.x,
+            pos.y,
+        );
         pos.x += 50.0;
 
         let text = format!("{:?}", cycle.sum_elapsed / cycle.hits);
-        gapi::push_string_xy(context.commands_state, context.render_state, &text, pos.x, pos.y);
+        gapi::push_string_xy(
+            context.commands_state,
+            context.render_state,
+            &text,
+            pos.x,
+            pos.y,
+        );
         pos.x += 100.0;
 
         let text = format!(
             "{:?} ns/h",
             cycle.sum_hits_over_elapsed / cycle.hits as u128
         );
-        gapi::push_string_xy(context.commands_state, context.render_state, &text, pos.x, pos.y);
+        gapi::push_string_xy(
+            context.commands_state,
+            context.render_state,
+            &text,
+            pos.x,
+            pos.y,
+        );
 
         pos.y += line_size;
     }
@@ -244,7 +291,13 @@ fn render_frame_time(context: &mut Context, profile_state: &profile::ProfileStat
         "{:.2} ms",
         profile_state.frame_elapsed.as_nanos() as f64 / 1_000_000.0
     );
-    gapi::push_string_xy(context.commands_state, context.render_state, &text, 5.0, 5.0);
+    gapi::push_string_xy(
+        context.commands_state,
+        context.render_state,
+        &text,
+        5.0,
+        5.0,
+    );
 
     gapi::push_text_shader(context.commands_state);
     gapi::push_color(context.commands_state, Color::rgb(0.0, 0.0, 0.0));

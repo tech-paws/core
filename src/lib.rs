@@ -7,9 +7,9 @@ pub mod commands;
 pub mod components;
 pub mod debug_services;
 pub mod gapi;
-pub mod render_state;
 pub mod layout;
 pub mod memory;
+pub mod render_state;
 pub mod systems;
 
 mod serialize;
@@ -22,10 +22,10 @@ use std::sync::{Mutex, MutexGuard};
 
 use lazy_static::lazy_static;
 
-use render_state::RENDER_STATE;
 use commands::*;
 use components::*;
 use legion::prelude::*;
+use render_state::RENDER_STATE;
 use serialize::*;
 use systems::camera::camera_system;
 use systems::grid::render_grid_system;
@@ -60,6 +60,7 @@ pub extern "C" fn init_world() {
 
     world.resources.insert(CommandsState::default());
     world.resources.insert(ViewPortSize::default());
+    world.resources.insert(TouchState::default());
 
     world.insert(
         (),
@@ -88,7 +89,7 @@ pub extern "C" fn init_world() {
                 id: gapi::CAMERA_ORTHO,
                 pos: Vec2f::new(-320.0, -240.0),
             },
-            CameraMovable2D::default(),
+            // CameraMovable2D::default(),
             TouchState::default(),
             Camera2DPositionListener::new(gapi::CAMERA_ORTHO),
         )],
@@ -103,11 +104,7 @@ pub extern "C" fn init_world() {
                 .build(),
         );
 
-        SCHEDULER_RENDER_PASS1 = Some(
-            Schedule::builder()
-                .flush()
-                .build(),
-        );
+        SCHEDULER_RENDER_PASS1 = Some(Schedule::builder().flush().build());
 
         SCHEDULER_RENDER_PASS2 = Some(
             Schedule::builder()
@@ -143,7 +140,22 @@ pub extern "C" fn frame_start() {
 
 #[no_mangle]
 pub extern "C" fn frame_end() {
-    debug_services::debug_frame_end();
+    match get_application_state().as_mut() {
+        Some(state) => {
+            let mut touch_state = state
+                .world
+                .resources
+                .get_mut::<TouchState>()
+                .expect("failed to get commands state");
+
+            touch_state.touch = Touch::None;
+
+            debug_services::debug_frame_end();
+        }
+        None => {
+            panic!("failed to get application state");
+        }
+    }
 }
 
 #[no_mangle]
@@ -171,6 +183,14 @@ pub extern "C" fn step() {
                     .expect("failed to get scheduler")
                     .execute(&mut state.world);
             }
+
+            let touch_state = state
+                .world
+                .resources
+                .get::<TouchState>()
+                .expect("failed to get commands state");
+
+            debug_services::step_pass(&touch_state);
         }
         None => {
             panic!("failed to get application state");
@@ -302,13 +322,7 @@ fn handle_request_command(application_state: &mut ApplicationState, command: &Re
             ..
         } => {
             if let Some(vec2f) = memory.vec2f_data.pop() {
-                let query = <(Write<TouchState>,)>::query();
-
-                for (mut touch_state,) in query.iter(world) {
-                    touch_state.touch = Touch::Start;
-                    touch_state.touch_start = vec2f;
-                    touch_state.touch_current = vec2f;
-                }
+                on_touch_start(world, vec2f);
             }
             else {
                 log::warn!("data have not been provided to OnTouchStart request command");
@@ -321,14 +335,7 @@ fn handle_request_command(application_state: &mut ApplicationState, command: &Re
             ..
         } => {
             if let Some(vec2f) = memory.vec2f_data.pop() {
-                let query = <(Write<TouchState>,)>::query();
-
-                for (mut touch_state,) in query.iter(world) {
-                    if touch_state.touch == Touch::Start || touch_state.touch == Touch::Move {
-                        touch_state.touch = Touch::End;
-                        touch_state.touch_current = vec2f;
-                    }
-                }
+                on_touch_end(world, vec2f);
             }
             else {
                 log::warn!("data have not been provided to OnTouchEnd request command");
@@ -341,14 +348,7 @@ fn handle_request_command(application_state: &mut ApplicationState, command: &Re
             ..
         } => {
             if let Some(vec2f) = memory.vec2f_data.pop() {
-                let query = <(Write<TouchState>,)>::query();
-
-                for (mut touch_state,) in query.iter(world) {
-                    if touch_state.touch == Touch::Start || touch_state.touch == Touch::Move {
-                        touch_state.touch = Touch::Move;
-                        touch_state.touch_current = vec2f;
-                    }
-                }
+                on_touch_move(world, vec2f);
             }
             else {
                 log::warn!("data have not been provided to OnTouchMove request command");
@@ -737,6 +737,72 @@ fn set_view_port_size(world: &mut World, width: i32, height: i32) {
 
     view_port_size.width = width;
     view_port_size.height = height;
+}
+
+fn on_touch_start(world: &mut World, touch: Vec2f) {
+    {
+        let mut touch_state = world
+            .resources
+            .get_mut::<TouchState>()
+            .expect("falied to get viewport");
+
+        touch_state.touch = Touch::Start;
+        touch_state.touch_start = touch;
+        touch_state.touch_current = touch;
+    }
+
+    let query = <(Write<TouchState>,)>::query();
+
+    for (mut touch_state,) in query.iter(world) {
+        touch_state.touch = Touch::Start;
+        touch_state.touch_start = touch;
+        touch_state.touch_current = touch;
+    }
+}
+
+fn on_touch_end(world: &mut World, touch: Vec2f) {
+    {
+        let mut touch_state = world
+            .resources
+            .get_mut::<TouchState>()
+            .expect("falied to get viewport");
+
+        touch_state.touch = Touch::End;
+        touch_state.touch_current = touch;
+    }
+
+    let query = <(Write<TouchState>,)>::query();
+
+    for (mut touch_state,) in query.iter(world) {
+        if touch_state.touch == Touch::Start || touch_state.touch == Touch::Move {
+            touch_state.touch = Touch::End;
+            touch_state.touch_current = touch;
+        }
+    }
+}
+
+fn on_touch_move(world: &mut World, touch: Vec2f) {
+    {
+        let mut touch_state = world
+            .resources
+            .get_mut::<TouchState>()
+            .expect("falied to get viewport");
+
+        touch_state.pos = touch;
+        touch_state.touch = Touch::Move;
+        touch_state.touch_current = touch;
+    }
+
+    let query = <(Write<TouchState>,)>::query();
+
+    for (mut touch_state,) in query.iter(world) {
+        touch_state.pos = touch;
+
+        if touch_state.touch == Touch::Start || touch_state.touch == Touch::Move {
+            touch_state.touch = Touch::Move;
+            touch_state.touch_current = touch;
+        }
+    }
 }
 
 // #[cfg(test)]

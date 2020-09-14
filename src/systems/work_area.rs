@@ -16,7 +16,7 @@ pub fn render_work_area_system() -> Box<dyn Schedulable> {
                 gapi::push_color_shader(commands_state);
                 gapi::push_color(commands_state, work_area.color);
                 gapi::set_color_uniform(commands_state);
-                gapi::push_quad_lines(commands_state, Vec2f::zero(), work_area.size);
+                gapi::push_quad_lines(commands_state, Vec2f::ZERO, work_area.size);
             }
 
             gapi::set_camera(commands_state, gapi::CAMERA_ORTHO);

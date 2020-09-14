@@ -43,7 +43,7 @@ impl Camera2DPositionListener {
     pub fn new(id: usize) -> Camera2DPositionListener {
         Camera2DPositionListener {
             id,
-            pos: Vec2f::zero(),
+            pos: Vec2f::ZERO,
         }
     }
 }
@@ -58,7 +58,9 @@ pub enum Touch {
 
 #[derive(Debug)]
 pub struct TouchState {
+    pub last_touch: Touch,
     pub touch: Touch,
+    pub pos: Vec2f,
     pub touch_start: Vec2f,
     pub touch_current: Vec2f,
 }
@@ -66,9 +68,11 @@ pub struct TouchState {
 impl Default for TouchState {
     fn default() -> Self {
         TouchState {
+            last_touch: Touch::None,
             touch: Touch::None,
-            touch_start: Vec2f::zero(),
-            touch_current: Vec2f::zero(),
+            pos: Vec2f::ZERO,
+            touch_start: Vec2f::ZERO,
+            touch_current: Vec2f::ZERO,
         }
     }
 }
