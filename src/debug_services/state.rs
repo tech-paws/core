@@ -13,6 +13,7 @@ lazy_static! {
 pub enum DebugVariable {
     Bool(BoolVariable),
     Group(GroupVariable),
+
 }
 
 pub struct BoolVariable {

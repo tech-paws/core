@@ -61,6 +61,7 @@ pub extern "C" fn init_world() {
     world.resources.insert(CommandsState::default());
     world.resources.insert(ViewPortSize::default());
     world.resources.insert(TouchState::default());
+    world.resources.insert(LayersState::default());
 
     world.insert(
         (),
@@ -89,7 +90,7 @@ pub extern "C" fn init_world() {
                 id: gapi::CAMERA_ORTHO,
                 pos: Vec2f::new(-320.0, -240.0),
             },
-            // CameraMovable2D::default(),
+            CameraMovable2D::default(),
             TouchState::default(),
             Camera2DPositionListener::new(gapi::CAMERA_ORTHO),
         )],
@@ -146,9 +147,17 @@ pub extern "C" fn frame_end() {
                 .world
                 .resources
                 .get_mut::<TouchState>()
-                .expect("failed to get commands state");
+                .expect("failed to get touch state");
 
             touch_state.touch = Touch::None;
+
+            let mut layers_state = state
+                .world
+                .resources
+                .get_mut::<LayersState>()
+                .expect("failed to get layers state");
+
+            layers_state.reset();
 
             debug_services::debug_frame_end();
         }
@@ -175,7 +184,23 @@ pub extern "C" fn flush() {
 pub extern "C" fn step() {
     match get_application_state().as_mut() {
         Some(state) => {
-            handle_request_commands(state);
+            {
+                handle_request_commands(state);
+
+                let touch_state = state
+                    .world
+                    .resources
+                    .get::<TouchState>()
+                    .expect("failed to get touch state");
+
+                let mut layers_state = state
+                    .world
+                    .resources
+                    .get_mut::<LayersState>()
+                    .expect("failed to get layers state");
+
+                debug_services::ui_step_pass(&touch_state, &mut layers_state);
+            }
 
             unsafe {
                 SCHEDULER_PROGRESS
@@ -183,14 +208,6 @@ pub extern "C" fn step() {
                     .expect("failed to get scheduler")
                     .execute(&mut state.world);
             }
-
-            let touch_state = state
-                .world
-                .resources
-                .get::<TouchState>()
-                .expect("failed to get commands state");
-
-            debug_services::step_pass(&touch_state);
         }
         None => {
             panic!("failed to get application state");

@@ -27,6 +27,7 @@ pub struct Camera2D {
 
 #[derive(Default, Debug)]
 pub struct CameraMovable2D {
+    pub is_hot: bool,
     pub last_pos: Vec2f,
 }
 
@@ -63,6 +64,17 @@ pub struct TouchState {
     pub pos: Vec2f,
     pub touch_start: Vec2f,
     pub touch_current: Vec2f,
+}
+
+#[derive(Debug, Default)]
+pub struct LayersState {
+    pub ui_layer_is_hot: bool,
+}
+
+impl LayersState {
+    pub fn reset(&mut self) {
+        self.ui_layer_is_hot = false;
+    }
 }
 
 impl Default for TouchState {
