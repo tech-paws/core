@@ -17,7 +17,7 @@ pub fn init(debug_state: &mut MutexGuard<DebugState>) {
 }
 
 fn set_snapshot_interval_command(
-    debug_state: &mut MutexGuard<DebugState>,
+    _: &mut MutexGuard<DebugState>,
     arguments: &[CommandArgument],
 ) -> Result<(), String> {
     require(arguments.len() == 1, "bad arguments length")?;
@@ -27,7 +27,8 @@ fn set_snapshot_interval_command(
         _ => Err(String::from("Argument should be int")),
     }?;
 
-    profile::update_snapshot_interval(debug_state, interval as usize);
+    let mut profile_state = profile::get_profile_state();
+    profile::update_snapshot_interval(&mut profile_state, interval as usize);
 
     Ok(())
 }

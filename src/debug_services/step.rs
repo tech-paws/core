@@ -25,10 +25,6 @@ fn step_group_variables(
     layers_state: &mut LayersState,
     variable: &mut GroupVariable,
 ) {
-    if layers_state.ui_layer_is_hot {
-        return;
-    }
-
     variable.is_hot = point_in_rect(touch_state.pos, variable.bounds);
 
     if variable.is_hot {
@@ -39,22 +35,64 @@ fn step_group_variables(
         variable.is_expanded = !variable.is_expanded;
     }
 
+    if !variable.is_expanded {
+        return;
+    }
+
     for mut v in variable.variables.iter_mut() {
         match &mut v {
             DebugVariable::Bool(variable) => {
-                step_bool_variables(touch_state, variable);
+                step_bool_variables(touch_state, layers_state, variable);
             }
             DebugVariable::Group(group) => {
                 step_group_variables(touch_state, layers_state, group);
+            }
+            DebugVariable::Profiler(profiler) => {
+                step_profiler_variable(touch_state, layers_state, profiler);
+            }
+            DebugVariable::ProfilerLogSlider(log_slider) => {
+                step_profiler_log_slider_variable(touch_state, layers_state, log_slider);
             }
         };
     }
 }
 
-fn step_bool_variables(touch_state: &TouchState, variable: &mut BoolVariable) {
+fn step_bool_variables(
+    touch_state: &TouchState,
+    layers_state: &mut LayersState,
+    variable: &mut BoolVariable,
+) {
     variable.is_hot = point_in_rect(touch_state.pos, variable.bounds);
+
+    if variable.is_hot {
+        layers_state.ui_layer_is_hot = true;
+    }
 
     if variable.is_hot && touch_state.touch == Touch::Start {
         variable.value = !variable.value;
+    }
+}
+
+fn step_profiler_variable(
+    touch_state: &TouchState,
+    layers_state: &mut LayersState,
+    variable: &mut ProfilerVariable,
+) {
+    variable.is_hot = point_in_rect(touch_state.pos, variable.bounds);
+
+    if variable.is_hot {
+        layers_state.ui_layer_is_hot = true;
+    }
+}
+
+fn step_profiler_log_slider_variable(
+    touch_state: &TouchState,
+    layers_state: &mut LayersState,
+    variable: &mut ProfilerLogSliderVariable,
+) {
+    variable.is_hot = point_in_rect(touch_state.pos, variable.bounds);
+
+    if variable.is_hot {
+        layers_state.ui_layer_is_hot = true;
     }
 }

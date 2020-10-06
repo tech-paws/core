@@ -3,6 +3,7 @@ use std::sync::MutexGuard;
 use crate::commands::{Color, CommandsState, Rect, Vec2f};
 use crate::components::ViewPortSize;
 use crate::debug_services::profile;
+use crate::debug_services::profile::ProfileState;
 use crate::debug_services::state::*;
 use crate::gapi;
 use crate::render_state::RenderState;
@@ -12,11 +13,13 @@ struct Context<'a> {
     view_port: &'a ViewPortSize,
     commands_state: &'a mut CommandsState,
     render_state: &'a mut RenderState,
+    profile_state: &'a ProfileState,
 }
 
 pub fn render(
     debug_state: &mut MutexGuard<DebugState>,
     render_state: &mut MutexGuard<RenderState>,
+    profile_state: &mut MutexGuard<ProfileState>,
     commands_state: &mut CommandsState,
     view_port: &ViewPortSize,
 ) {
@@ -27,23 +30,24 @@ pub fn render(
         view_port,
         commands_state,
         render_state,
+        profile_state,
     };
 
-    let size = render_frame_time(&mut context, &debug_state.profile);
+    let size = render_frame_time(&mut context, &profile_state);
 
     context.pos.y += size.y;
     context.pos.x = 5.;
 
     render_group_variables(&mut context, &mut debug_state.variables);
 
-    context.pos.y += 10.;
+    // context.pos.y += 10.;
 
-    let size = render_frames_slider(&mut context, &debug_state.profile);
+    // let size = render_frames_slider(&mut context, &debug_state.profile);
 
-    context.pos.y += size.y;
-    context.pos.x = 0.0;
+    // context.pos.y += size.y;
+    // context.pos.x = 0.0;
 
-    render_profile(&mut context, &debug_state.profile);
+    // render_profile(&mut context, &debug_state.profile);
 }
 
 fn render_group_variables(context: &mut Context, variable: &mut GroupVariable) {
@@ -84,8 +88,14 @@ fn render_group_variables(context: &mut Context, variable: &mut GroupVariable) {
             DebugVariable::Bool(variable) => {
                 render_bool_variable(context, variable);
             }
-            DebugVariable::Group(group) => {
-                render_group_variables(context, group);
+            DebugVariable::Group(variable) => {
+                render_group_variables(context, variable);
+            }
+            DebugVariable::Profiler(variable) => {
+                render_profiler_variable(context, variable);
+            }
+            DebugVariable::ProfilerLogSlider(variable) => {
+                render_profiler_log_slider_variable(context, variable);
             }
         };
     }
@@ -134,6 +144,44 @@ fn render_bool_variable(context: &mut Context, variable: &mut BoolVariable) {
     gapi::draw_lines(context.commands_state);
 
     context.pos.y += text_size.y;
+}
+
+fn render_frame_time(context: &mut Context, profile_state: &profile::ProfileState) -> Vec2f {
+    let text = format!(
+        "{:.2} ms",
+        profile_state.frame_elapsed.as_nanos() as f64 / 1_000_000.0
+    );
+    gapi::push_string_xy(
+        context.commands_state,
+        context.render_state,
+        &text,
+        5.0,
+        5.0,
+    );
+
+    gapi::push_text_shader(context.commands_state);
+    gapi::push_color(context.commands_state, Color::rgb(0.0, 0.0, 0.0));
+    gapi::set_color_uniform(context.commands_state);
+    gapi::draw_text(context.commands_state);
+
+    Vec2f::new(0., 28.)
+}
+
+fn render_profiler_variable(context: &mut Context, variable: &mut ProfilerVariable) {
+    let pos = context.pos;
+    let size = render_profile(context, context.profile_state);
+    variable.bounds = Rect::new(pos, size);
+    context.pos.y += size.y;
+}
+
+fn render_profiler_log_slider_variable(
+    context: &mut Context,
+    variable: &mut ProfilerLogSliderVariable,
+) {
+    let pos = context.pos;
+    let size = render_frames_slider(context, context.profile_state);
+    variable.bounds = Rect::new(pos, size);
+    context.pos.y += size.y;
 }
 
 fn render_profile(context: &mut Context, profile_state: &profile::ProfileState) -> Vec2f {
@@ -284,25 +332,4 @@ fn render_frames_slider(context: &mut Context, profile_state: &profile::ProfileS
     }
 
     Vec2f::new(width, height)
-}
-
-fn render_frame_time(context: &mut Context, profile_state: &profile::ProfileState) -> Vec2f {
-    let text = format!(
-        "{:.2} ms",
-        profile_state.frame_elapsed.as_nanos() as f64 / 1_000_000.0
-    );
-    gapi::push_string_xy(
-        context.commands_state,
-        context.render_state,
-        &text,
-        5.0,
-        5.0,
-    );
-
-    gapi::push_text_shader(context.commands_state);
-    gapi::push_color(context.commands_state, Color::rgb(0.0, 0.0, 0.0));
-    gapi::set_color_uniform(context.commands_state);
-    gapi::draw_text(context.commands_state);
-
-    Vec2f::new(0., 28.)
 }

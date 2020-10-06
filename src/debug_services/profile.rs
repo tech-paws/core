@@ -1,14 +1,20 @@
 use std::time::{Duration, Instant};
 
 use std::collections::HashMap;
-use std::sync::MutexGuard;
+use std::sync::{Mutex, MutexGuard};
 use std::thread;
+
+use lazy_static::lazy_static;
 
 use crate::debug_services::state::{DebugState, DEBUG_STATE};
 
 pub const PERFORMANCE_RECORDS_CAPACITY: usize = 512;
 pub const PERFORMANCE_COUNTER_LOG_SIZE: usize = 120; // max entires
 pub const PERFORMANCE_COUNTER_STATE_SIZE: usize = 60; // max entires
+
+lazy_static! {
+    pub static ref PROFILE_STATE: Mutex<ProfileState> = Mutex::new(ProfileState::default());
+}
 
 pub struct ProfileState {
     pub snapshot_interval: usize,
@@ -135,7 +141,7 @@ impl TimedBlock {
 impl Drop for TimedBlock {
     fn drop(&mut self) {
         if !self.manual_drop {
-            drop_timed_block(self, &mut get_debug_state());
+            drop_timed_block(self, &mut get_profile_state());
         }
     }
 }
@@ -151,8 +157,12 @@ fn get_debug_state<'a>() -> MutexGuard<'a, DebugState> {
     DEBUG_STATE.lock().expect("failed to get debug state")
 }
 
+pub fn get_profile_state<'a>() -> MutexGuard<'a, ProfileState> {
+    PROFILE_STATE.lock().expect("failed to get profile state")
+}
+
 pub fn push_timed_block(name: &'static str, file_name: &'static str, line: u32) -> u64 {
-    let debug_state = &mut get_debug_state();
+    let profile = &mut get_profile_state();
 
     let block = TimedBlock {
         name,
@@ -163,17 +173,17 @@ pub fn push_timed_block(name: &'static str, file_name: &'static str, line: u32) 
         timer: Instant::now(),
     };
 
-    let id = debug_state.profile.last_timed_block_id;
+    let id = profile.last_timed_block_id;
 
-    debug_state.profile.last_timed_block_id += 1;
-    debug_state.profile.timed_blocks.insert(id, block);
+    profile.last_timed_block_id += 1;
+    profile.timed_blocks.insert(id, block);
 
     id
 }
 
 pub fn drop_timed_block_by_id(id: u64) {
-    let debug_state = &mut get_debug_state();
-    let block = match debug_state.profile.timed_blocks.get(&id) {
+    let profile = &mut get_profile_state();
+    let block = match profile.timed_blocks.get(&id) {
         Some(value) => value.clone(),
         None => {
             log::warn!("Couldn't drop block by id: {}", id);
@@ -181,13 +191,11 @@ pub fn drop_timed_block_by_id(id: u64) {
         }
     };
 
-    drop_timed_block(&block, debug_state);
-    debug_state.profile.timed_blocks.remove(&id);
+    drop_timed_block(&block, profile);
+    profile.timed_blocks.remove(&id);
 }
 
-pub fn drop_timed_block(timed_block: &TimedBlock, debug_state: &mut MutexGuard<DebugState>) {
-    let profile_state = &mut debug_state.profile;
-
+pub fn drop_timed_block(timed_block: &TimedBlock, profile_state: &mut MutexGuard<ProfileState>) {
     let mut hits = 1;
     let mut elapsed = timed_block.timer.elapsed();
     let mut to_modify = false;
@@ -231,28 +239,27 @@ pub fn drop_timed_block(timed_block: &TimedBlock, debug_state: &mut MutexGuard<D
     }
 }
 
-pub fn frame_start(debug_state: &mut MutexGuard<DebugState>) {
-    debug_state.profile.frame_timer = Instant::now();
+pub fn frame_start(profile_state: &mut MutexGuard<ProfileState>) {
+    profile_state.frame_timer = Instant::now();
 }
 
-pub fn frame_end(debug_state: &mut MutexGuard<DebugState>) {
-    debug_state.profile.frame_counter += 1;
-    debug_state.profile.frame_elapsed = debug_state.profile.frame_timer.elapsed();
+pub fn frame_end(profile_state: &mut MutexGuard<ProfileState>) {
+    profile_state.frame_counter += 1;
+    profile_state.frame_elapsed = profile_state.frame_timer.elapsed();
 
-    let snapshot_interval = debug_state.profile.snapshot_interval;
+    let snapshot_interval = profile_state.snapshot_interval;
 
-    if debug_state.profile.frame_counter >= snapshot_interval {
-        take_snapshot(debug_state);
-        debug_state.profile.frame_counter = 0;
+    if profile_state.frame_counter >= snapshot_interval {
+        take_snapshot(profile_state);
+        profile_state.frame_counter = 0;
 
         for i in 0..snapshot_interval {
-            debug_state.profile.performance_counter_states[i] = PerformanceCounterState::default();
+            profile_state.performance_counter_states[i] = PerformanceCounterState::default();
         }
     }
 }
 
-fn take_snapshot(debug_state: &mut MutexGuard<DebugState>) {
-    let profile_state = &mut debug_state.profile;
+fn take_snapshot(profile_state: &mut MutexGuard<ProfileState>) {
     profile_state.snapshot_counter += 1;
 
     if profile_state.snapshot_counter >= PERFORMANCE_COUNTER_LOG_SIZE {
@@ -299,8 +306,8 @@ fn take_snapshot(debug_state: &mut MutexGuard<DebugState>) {
     snapshot.append(&mut records);
 }
 
-pub fn update_snapshot_interval(debug_state: &mut MutexGuard<DebugState>, new_interval: usize) {
+pub fn update_snapshot_interval(profile_state: &mut MutexGuard<ProfileState>, new_interval: usize) {
     if new_interval <= PERFORMANCE_COUNTER_STATE_SIZE {
-        debug_state.profile.snapshot_interval = new_interval;
+        profile_state.snapshot_interval = new_interval;
     }
 }
